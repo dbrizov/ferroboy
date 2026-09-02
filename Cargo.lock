@@ -388,13 +388,14 @@ dependencies = [
 ]
 
 [[package]]
-name = "ferroboy_core"
+name = "ferroboy"
 version = "0.1.0"
 
 [[package]]
 name = "ferroboy_desktop"
 version = "0.1.0"
 dependencies = [
+ "ferroboy",
  "pixels",
  "winit",
 ]

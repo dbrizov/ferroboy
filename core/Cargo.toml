@@ -1,5 +1,5 @@
 [package]
-name = "ferroboy_core"
+name = "ferroboy"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

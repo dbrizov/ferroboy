@@ -8,5 +8,6 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
+ferroboy = { path = "../core" }
 pixels = "0.17.2"
 winit = "0.30.13"

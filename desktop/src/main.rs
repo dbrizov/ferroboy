@@ -1,6 +1,7 @@
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+use ferroboy::emulator::{Emulator, SCREEN_HEIGHT, SCREEN_WIDTH};
 use pixels::{Pixels, SurfaceTexture};
 use winit::application::ApplicationHandler;
 use winit::dpi::LogicalSize;
@@ -8,8 +9,8 @@ use winit::event::WindowEvent;
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
 use winit::window::{Window, WindowId};
 
-const GB_WIDTH: u32 = 160;
-const GB_HEIGHT: u32 = 144;
+const GB_WIDTH: u32 = SCREEN_WIDTH as u32;
+const GB_HEIGHT: u32 = SCREEN_HEIGHT as u32;
 const WINDOW_SCALE: u32 = 4;
 const FRAME_DURATION: Duration = Duration::from_nanos(16_742_706);
 
@@ -24,8 +25,8 @@ const PALETTE: [[u8; 4]; 4] = [
 struct App {
     window: Option<Arc<Window>>,
     pixels: Option<Pixels<'static>>,
+    emulator: Emulator,
     next_frame: Instant,
-    frames: u64,
 }
 
 impl App {
@@ -33,16 +34,17 @@ impl App {
         Self {
             window: None,
             pixels: None,
+            emulator: Emulator::new(),
             next_frame: Instant::now(),
-            frames: 0,
         }
     }
 
     fn draw(&mut self) {
         if let Some(pixels) = &mut self.pixels {
-            let shade = ((self.frames / 30) % 4) as usize;
-            for pixel in pixels.frame_mut().as_chunks_mut::<4>().0 {
-                *pixel = PALETTE[shade];
+            let framebuffer = self.emulator.framebuffer();
+            let surface = pixels.frame_mut().as_chunks_mut::<4>().0;
+            for (pixel, &shade) in surface.iter_mut().zip(framebuffer) {
+                *pixel = PALETTE[shade as usize];
             }
         }
     }
@@ -93,7 +95,7 @@ impl ApplicationHandler for App {
                 self.next_frame = now + FRAME_DURATION;
             }
 
-            self.frames += 1;
+            self.emulator.run_frame();
             self.draw();
 
             if let Some(window) = &self.window {
