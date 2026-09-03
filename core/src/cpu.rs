@@ -3,10 +3,10 @@ mod opcodes;
 use crate::bus::Bus;
 use crate::cpu::opcodes::*;
 
-pub const FLAG_Z: u8 = 0x80;
-pub const FLAG_N: u8 = 0x40;
-pub const FLAG_H: u8 = 0x20;
-pub const FLAG_C: u8 = 0x10;
+pub const FLAG_Z: u8 = 1 << 7;
+pub const FLAG_N: u8 = 1 << 6;
+pub const FLAG_H: u8 = 1 << 5;
+pub const FLAG_C: u8 = 1 << 4;
 
 pub struct Registers {
     pub a: u8,
