@@ -1,5 +1,7 @@
-#[cfg(test)]
-mod tests;
+mod opcodes;
+
+use crate::bus::Bus;
+use crate::cpu::opcodes::*;
 
 pub const FLAG_Z: u8 = 0x80;
 pub const FLAG_N: u8 = 0x40;
@@ -92,7 +94,7 @@ pub struct Cpu {
 }
 
 impl Cpu {
-    pub(crate) fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             regs: Registers::post_boot(),
             sp: 0xFFFE,
@@ -101,5 +103,49 @@ impl Cpu {
             ime_pending: false,
             halted: false,
         }
+    }
+
+    pub fn step(&mut self, bus: &mut Bus) -> u8 {
+        if self.halted {
+            return 4; // idle, but the clock still runs
+        }
+
+        let opcode = self.fetch(bus);
+        self.execute(opcode, bus)
+    }
+
+    fn fetch(&mut self, bus: &mut Bus) -> u8 {
+        let byte = bus.read(self.pc);
+        self.pc = self.pc.wrapping_add(1);
+        byte
+    }
+
+    fn execute(&mut self, opcode: u8, bus: &mut Bus) -> u8 {
+        match opcode {
+            NOP => 4,
+            HALT => {
+                self.halted = true;
+                4
+            }
+            PREFIX_CB => {
+                let cb_opcode = self.fetch(bus);
+                self.execute_cb(cb_opcode, bus)
+            }
+            _ => panic!(
+                "unimplemented opcode {:#04X} ({}) at {:#06X}",
+                opcode,
+                MNEMONIC[opcode as usize],
+                self.pc.wrapping_sub(1)
+            ),
+        }
+    }
+
+    fn execute_cb(&mut self, cb_opcode: u8, _bus: &mut Bus) -> u8 {
+        panic!(
+            "unimplemented CB opcode {:#04X} ({}) at {:#06X}",
+            cb_opcode,
+            CB_MNEMONIC[cb_opcode as usize],
+            self.pc.wrapping_sub(2)
+        )
     }
 }
