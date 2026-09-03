@@ -1,15 +1,10 @@
 use crate::bus::Bus;
 use crate::cpu::Cpu;
-
-pub const SCREEN_WIDTH: usize = 160;
-pub const SCREEN_HEIGHT: usize = 144;
-pub const FRAME_CYCLES: u32 = 70_224;
+use crate::ppu::{SCREEN_HEIGHT, SCREEN_WIDTH};
 
 pub struct Emulator {
     cpu: Cpu,
     bus: Bus,
-    framebuffer: [u8; SCREEN_WIDTH * SCREEN_HEIGHT],
-    frames: u64,
 }
 
 impl Emulator {
@@ -17,8 +12,6 @@ impl Emulator {
         Self {
             cpu: Cpu::new(),
             bus: Bus::new(),
-            framebuffer: [0; SCREEN_WIDTH * SCREEN_HEIGHT],
-            frames: 0,
         }
     }
 
@@ -29,17 +22,12 @@ impl Emulator {
     }
 
     pub fn run_frame(&mut self) {
-        let mut cycles: u32 = 0;
-        while cycles < FRAME_CYCLES {
-            cycles += self.step() as u32;
+        while self.bus.ppu.take_frame_ready() {
+            self.step();
         }
-
-        self.frames += 1;
-        let shade = (self.frames / 30 % 4) as u8;
-        self.framebuffer = [shade; SCREEN_WIDTH * SCREEN_HEIGHT];
     }
 
     pub fn framebuffer(&self) -> &[u8; SCREEN_WIDTH * SCREEN_HEIGHT] {
-        &self.framebuffer
+        &self.bus.ppu.framebuffer()
     }
 }

@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use ferroboy::emulator::{Emulator, SCREEN_HEIGHT, SCREEN_WIDTH};
+use ferroboy::{Emulator, SCREEN_HEIGHT, SCREEN_WIDTH};
 use pixels::{Pixels, SurfaceTexture};
 use winit::application::ApplicationHandler;
 use winit::dpi::LogicalSize;
