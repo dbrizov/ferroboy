@@ -1,6 +1,7 @@
 #![allow(dead_code)] // TODO remove
 
 mod bus;
+mod cartridge;
 mod cpu;
 mod emulator;
 mod interrupts;
