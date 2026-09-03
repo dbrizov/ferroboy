@@ -1,7 +1,10 @@
+use crate::cpu::Cpu;
+
 pub const SCREEN_WIDTH: usize = 160;
 pub const SCREEN_HEIGHT: usize = 144;
 
 pub struct Emulator {
+    cpu: Cpu,
     framebuffer: [u8; SCREEN_WIDTH * SCREEN_HEIGHT],
     frames: u64,
 }
@@ -9,6 +12,7 @@ pub struct Emulator {
 impl Emulator {
     pub fn new() -> Self {
         Self {
+            cpu: Cpu::new(),
             framebuffer: [0; SCREEN_WIDTH * SCREEN_HEIGHT],
             frames: 0,
         }
