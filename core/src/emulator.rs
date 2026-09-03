@@ -27,6 +27,10 @@ impl Emulator {
         }
     }
 
+    pub fn take_serial_byte(&mut self) -> Option<u8> {
+        self.bus.serial.take_byte()
+    }
+
     pub fn framebuffer(&self) -> &[u8; SCREEN_WIDTH * SCREEN_HEIGHT] {
         &self.bus.ppu.framebuffer()
     }

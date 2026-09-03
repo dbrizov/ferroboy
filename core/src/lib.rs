@@ -6,6 +6,7 @@ mod emulator;
 mod interrupts;
 mod joypad;
 mod ppu;
+mod serial;
 mod timer;
 
 pub use crate::emulator::Emulator;

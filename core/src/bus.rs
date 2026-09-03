@@ -1,5 +1,6 @@
 use crate::joypad::Joypad;
 use crate::ppu::Ppu;
+use crate::serial::Serial;
 use crate::timer::Timer;
 
 const ROM_START: u16 = 0x0000;
@@ -40,6 +41,7 @@ pub struct Bus {
     pub ppu: Ppu,
     pub timer: Timer,
     pub joypad: Joypad,
+    pub serial: Serial,
 }
 
 impl Bus {
@@ -52,12 +54,14 @@ impl Bus {
             ppu: Ppu::new(),
             timer: Timer::new(),
             joypad: Joypad::new(),
+            serial: Serial::new(),
         }
     }
 
     pub fn tick(&mut self, t_cycles: u8) {
         self.intf |= self.ppu.tick(t_cycles);
         self.intf |= self.timer.tick(t_cycles);
+        self.intf |= self.serial.tick(t_cycles);
     }
 
     pub fn read(&self, address: u16) -> u8 {
@@ -70,7 +74,7 @@ impl Bus {
             OAM_START..=OAM_END => self.ppu.read_oam(address - OAM_START),
             UNUSABLE_START..=UNUSABLE_END => 0xFF,
             JOYPAD => self.joypad.read(),
-            SERIAL_START..=SERIAL_END => 0xFF,
+            SERIAL_START..=SERIAL_END => self.serial.read(address),
             TIMER_START..=TIMER_END => self.timer.read(address),
             IF => self.intf | 0xE0,
             APU_START..=APU_END => 0xFF,
@@ -91,7 +95,7 @@ impl Bus {
             OAM_START..=OAM_END => self.ppu.write_oam(address - OAM_START, value),
             UNUSABLE_START..=UNUSABLE_END => {}
             JOYPAD => self.joypad.write(value),
-            SERIAL_START..=SERIAL_END => {}
+            SERIAL_START..=SERIAL_END => self.serial.write(address, value),
             TIMER_START..=TIMER_END => self.timer.write(address, value),
             IF => self.intf = value & 0x1F,
             APU_START..=APU_END => {}
