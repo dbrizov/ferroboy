@@ -1,3 +1,26 @@
+mod nombc;
+
+use crate::cartridge::nombc::NoMbc;
+
+pub trait Cartridge {
+    fn read_rom(&self, address: u16) -> u8;
+    fn write_rom(&mut self, address: u16, value: u8);
+    fn read_ram(&self, offset: u16) -> u8;
+    fn write_ram(&mut self, offset: u16, value: u8);
+}
+
+pub fn load(rom: &[u8]) -> Box<dyn Cartridge> {
+    let header = Header::parse(rom);
+    match header.cart_type {
+        0x00 => Box::new(NoMbc::new(rom, &header)),
+        // A 32 KiB MBC1 cartridge has only banks 0 and 1, and bank 1 is what
+        // the mapper selects at reset - so with no bank switching it behaves
+        // exactly like no mapper at all. Every Blargg test ROM is one of these.
+        0x01..=0x03 if header.rom_size == 0x8000 => Box::new(NoMbc::new(rom, &header)),
+        other => panic!("unsupported cartridge type {other:#04X} - M9 adds MBC1, MBC3 and MBC5"),
+    }
+}
+
 mod addr {
     pub const TITLE: usize = 0x0134;
     pub const CGB_FLAG: usize = 0x0143;
@@ -67,6 +90,8 @@ fn rom_size(code: u8) -> usize {
     0x8000 << code
 }
 
+/// Not a shift like the ROM size, and not monotonic - 0x05 is 64 KiB, which is
+/// less than 0x04's 128 KiB.
 fn ram_size(code: u8) -> usize {
     match code {
         0x00 => 0,
