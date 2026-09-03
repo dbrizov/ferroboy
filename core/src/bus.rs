@@ -1,3 +1,4 @@
+use crate::joypad::Joypad;
 use crate::ppu::Ppu;
 use crate::timer::Timer;
 
@@ -38,6 +39,7 @@ pub struct Bus {
 
     pub ppu: Ppu,
     pub timer: Timer,
+    pub joypad: Joypad,
 }
 
 impl Bus {
@@ -49,6 +51,7 @@ impl Bus {
             inte: 0,
             ppu: Ppu::new(),
             timer: Timer::new(),
+            joypad: Joypad::new(),
         }
     }
 
@@ -66,7 +69,7 @@ impl Bus {
             ECHO_START..=ECHO_END => self.wram[(address - ECHO_START) as usize],
             OAM_START..=OAM_END => self.ppu.read_oam(address - OAM_START),
             UNUSABLE_START..=UNUSABLE_END => 0xFF,
-            JOYPAD => 0xFF,
+            JOYPAD => self.joypad.read(),
             SERIAL_START..=SERIAL_END => 0xFF,
             TIMER_START..=TIMER_END => self.timer.read(address),
             IF => self.intf | 0xE0,
@@ -87,7 +90,7 @@ impl Bus {
             ECHO_START..=ECHO_END => self.wram[(address - ECHO_START) as usize] = value,
             OAM_START..=OAM_END => self.ppu.write_oam(address - OAM_START, value),
             UNUSABLE_START..=UNUSABLE_END => {}
-            JOYPAD => {}
+            JOYPAD => self.joypad.write(value),
             SERIAL_START..=SERIAL_END => {}
             TIMER_START..=TIMER_END => self.timer.write(address, value),
             IF => self.intf = value & 0x1F,

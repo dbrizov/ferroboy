@@ -4,6 +4,7 @@ mod bus;
 mod cpu;
 mod emulator;
 mod interrupts;
+mod joypad;
 mod ppu;
 mod timer;
 
