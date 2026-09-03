@@ -5,6 +5,7 @@ mod cpu;
 mod emulator;
 mod interrupts;
 mod ppu;
+mod timer;
 
 pub use crate::emulator::Emulator;
 pub use crate::ppu::{SCREEN_HEIGHT, SCREEN_WIDTH};

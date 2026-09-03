@@ -1,4 +1,5 @@
 use crate::ppu::Ppu;
+use crate::timer::Timer;
 
 const ROM_START: u16 = 0x0000;
 const ROM_END: u16 = 0x7FFF;
@@ -36,6 +37,7 @@ pub struct Bus {
     inte: u8, // IE register
 
     pub ppu: Ppu,
+    pub timer: Timer,
 }
 
 impl Bus {
@@ -46,11 +48,13 @@ impl Bus {
             intf: 0,
             inte: 0,
             ppu: Ppu::new(),
+            timer: Timer::new(),
         }
     }
 
     pub fn tick(&mut self, t_cycles: u8) {
         self.intf |= self.ppu.tick(t_cycles);
+        self.intf |= self.timer.tick(t_cycles);
     }
 
     pub fn read(&self, address: u16) -> u8 {
@@ -64,7 +68,7 @@ impl Bus {
             UNUSABLE_START..=UNUSABLE_END => 0xFF,
             JOYPAD => 0xFF,
             SERIAL_START..=SERIAL_END => 0xFF,
-            TIMER_START..=TIMER_END => 0xFF,
+            TIMER_START..=TIMER_END => self.timer.read(address),
             IF => self.intf | 0xE0,
             APU_START..=APU_END => 0xFF,
             PPU_REG_START..=PPU_REG_END => self.ppu.read_reg(address),
@@ -85,7 +89,7 @@ impl Bus {
             UNUSABLE_START..=UNUSABLE_END => {}
             JOYPAD => {}
             SERIAL_START..=SERIAL_END => {}
-            TIMER_START..=TIMER_END => {}
+            TIMER_START..=TIMER_END => self.timer.write(address, value),
             IF => self.intf = value & 0x1F,
             APU_START..=APU_END => {}
             OAM_DMA => {}
