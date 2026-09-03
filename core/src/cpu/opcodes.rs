@@ -320,7 +320,7 @@ mod table {
     pub const CB_BIT_0_E: u8 = 0x43;       // BIT 0,E     2   8  Z 0 1 -
     pub const CB_BIT_0_H: u8 = 0x44;       // BIT 0,H     2   8  Z 0 1 -
     pub const CB_BIT_0_L: u8 = 0x45;       // BIT 0,L     2   8  Z 0 1 -
-    pub const CB_BIT_0_MEM_HL: u8 = 0x46;  // BIT 0,(HL)  2  16  Z 0 1 -
+    pub const CB_BIT_0_MEM_HL: u8 = 0x46;  // BIT 0,(HL)  2  12  Z 0 1 -
     pub const CB_BIT_0_A: u8 = 0x47;       // BIT 0,A     2   8  Z 0 1 -
     pub const CB_BIT_1_B: u8 = 0x48;       // BIT 1,B     2   8  Z 0 1 -
     pub const CB_BIT_1_C: u8 = 0x49;       // BIT 1,C     2   8  Z 0 1 -
@@ -328,7 +328,7 @@ mod table {
     pub const CB_BIT_1_E: u8 = 0x4B;       // BIT 1,E     2   8  Z 0 1 -
     pub const CB_BIT_1_H: u8 = 0x4C;       // BIT 1,H     2   8  Z 0 1 -
     pub const CB_BIT_1_L: u8 = 0x4D;       // BIT 1,L     2   8  Z 0 1 -
-    pub const CB_BIT_1_MEM_HL: u8 = 0x4E;  // BIT 1,(HL)  2  16  Z 0 1 -
+    pub const CB_BIT_1_MEM_HL: u8 = 0x4E;  // BIT 1,(HL)  2  12  Z 0 1 -
     pub const CB_BIT_1_A: u8 = 0x4F;       // BIT 1,A     2   8  Z 0 1 -
     pub const CB_BIT_2_B: u8 = 0x50;       // BIT 2,B     2   8  Z 0 1 -
     pub const CB_BIT_2_C: u8 = 0x51;       // BIT 2,C     2   8  Z 0 1 -
@@ -336,7 +336,7 @@ mod table {
     pub const CB_BIT_2_E: u8 = 0x53;       // BIT 2,E     2   8  Z 0 1 -
     pub const CB_BIT_2_H: u8 = 0x54;       // BIT 2,H     2   8  Z 0 1 -
     pub const CB_BIT_2_L: u8 = 0x55;       // BIT 2,L     2   8  Z 0 1 -
-    pub const CB_BIT_2_MEM_HL: u8 = 0x56;  // BIT 2,(HL)  2  16  Z 0 1 -
+    pub const CB_BIT_2_MEM_HL: u8 = 0x56;  // BIT 2,(HL)  2  12  Z 0 1 -
     pub const CB_BIT_2_A: u8 = 0x57;       // BIT 2,A     2   8  Z 0 1 -
     pub const CB_BIT_3_B: u8 = 0x58;       // BIT 3,B     2   8  Z 0 1 -
     pub const CB_BIT_3_C: u8 = 0x59;       // BIT 3,C     2   8  Z 0 1 -
@@ -344,7 +344,7 @@ mod table {
     pub const CB_BIT_3_E: u8 = 0x5B;       // BIT 3,E     2   8  Z 0 1 -
     pub const CB_BIT_3_H: u8 = 0x5C;       // BIT 3,H     2   8  Z 0 1 -
     pub const CB_BIT_3_L: u8 = 0x5D;       // BIT 3,L     2   8  Z 0 1 -
-    pub const CB_BIT_3_MEM_HL: u8 = 0x5E;  // BIT 3,(HL)  2  16  Z 0 1 -
+    pub const CB_BIT_3_MEM_HL: u8 = 0x5E;  // BIT 3,(HL)  2  12  Z 0 1 -
     pub const CB_BIT_3_A: u8 = 0x5F;       // BIT 3,A     2   8  Z 0 1 -
     pub const CB_BIT_4_B: u8 = 0x60;       // BIT 4,B     2   8  Z 0 1 -
     pub const CB_BIT_4_C: u8 = 0x61;       // BIT 4,C     2   8  Z 0 1 -
@@ -352,7 +352,7 @@ mod table {
     pub const CB_BIT_4_E: u8 = 0x63;       // BIT 4,E     2   8  Z 0 1 -
     pub const CB_BIT_4_H: u8 = 0x64;       // BIT 4,H     2   8  Z 0 1 -
     pub const CB_BIT_4_L: u8 = 0x65;       // BIT 4,L     2   8  Z 0 1 -
-    pub const CB_BIT_4_MEM_HL: u8 = 0x66;  // BIT 4,(HL)  2  16  Z 0 1 -
+    pub const CB_BIT_4_MEM_HL: u8 = 0x66;  // BIT 4,(HL)  2  12  Z 0 1 -
     pub const CB_BIT_4_A: u8 = 0x67;       // BIT 4,A     2   8  Z 0 1 -
     pub const CB_BIT_5_B: u8 = 0x68;       // BIT 5,B     2   8  Z 0 1 -
     pub const CB_BIT_5_C: u8 = 0x69;       // BIT 5,C     2   8  Z 0 1 -
@@ -360,7 +360,7 @@ mod table {
     pub const CB_BIT_5_E: u8 = 0x6B;       // BIT 5,E     2   8  Z 0 1 -
     pub const CB_BIT_5_H: u8 = 0x6C;       // BIT 5,H     2   8  Z 0 1 -
     pub const CB_BIT_5_L: u8 = 0x6D;       // BIT 5,L     2   8  Z 0 1 -
-    pub const CB_BIT_5_MEM_HL: u8 = 0x6E;  // BIT 5,(HL)  2  16  Z 0 1 -
+    pub const CB_BIT_5_MEM_HL: u8 = 0x6E;  // BIT 5,(HL)  2  12  Z 0 1 -
     pub const CB_BIT_5_A: u8 = 0x6F;       // BIT 5,A     2   8  Z 0 1 -
     pub const CB_BIT_6_B: u8 = 0x70;       // BIT 6,B     2   8  Z 0 1 -
     pub const CB_BIT_6_C: u8 = 0x71;       // BIT 6,C     2   8  Z 0 1 -
@@ -368,7 +368,7 @@ mod table {
     pub const CB_BIT_6_E: u8 = 0x73;       // BIT 6,E     2   8  Z 0 1 -
     pub const CB_BIT_6_H: u8 = 0x74;       // BIT 6,H     2   8  Z 0 1 -
     pub const CB_BIT_6_L: u8 = 0x75;       // BIT 6,L     2   8  Z 0 1 -
-    pub const CB_BIT_6_MEM_HL: u8 = 0x76;  // BIT 6,(HL)  2  16  Z 0 1 -
+    pub const CB_BIT_6_MEM_HL: u8 = 0x76;  // BIT 6,(HL)  2  12  Z 0 1 -
     pub const CB_BIT_6_A: u8 = 0x77;       // BIT 6,A     2   8  Z 0 1 -
     pub const CB_BIT_7_B: u8 = 0x78;       // BIT 7,B     2   8  Z 0 1 -
     pub const CB_BIT_7_C: u8 = 0x79;       // BIT 7,C     2   8  Z 0 1 -
@@ -376,7 +376,7 @@ mod table {
     pub const CB_BIT_7_E: u8 = 0x7B;       // BIT 7,E     2   8  Z 0 1 -
     pub const CB_BIT_7_H: u8 = 0x7C;       // BIT 7,H     2   8  Z 0 1 -
     pub const CB_BIT_7_L: u8 = 0x7D;       // BIT 7,L     2   8  Z 0 1 -
-    pub const CB_BIT_7_MEM_HL: u8 = 0x7E;  // BIT 7,(HL)  2  16  Z 0 1 -
+    pub const CB_BIT_7_MEM_HL: u8 = 0x7E;  // BIT 7,(HL)  2  12  Z 0 1 -
     pub const CB_BIT_7_A: u8 = 0x7F;       // BIT 7,A     2   8  Z 0 1 -
     pub const CB_RES_0_B: u8 = 0x80;       // RES 0,B     2   8  - - - -
     pub const CB_RES_0_C: u8 = 0x81;       // RES 0,C     2   8  - - - -
