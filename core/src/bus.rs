@@ -1,3 +1,4 @@
+use crate::cartridge::{self, Cartridge};
 use crate::joypad::Joypad;
 use crate::ppu::Ppu;
 use crate::serial::Serial;
@@ -38,6 +39,7 @@ pub struct Bus {
     intf: u8, // IF register
     inte: u8, // IE register
 
+    cartridge: Box<dyn Cartridge>,
     pub ppu: Ppu,
     pub timer: Timer,
     pub joypad: Joypad,
@@ -45,12 +47,13 @@ pub struct Bus {
 }
 
 impl Bus {
-    pub fn new() -> Self {
+    pub fn new(rom: &[u8]) -> Self {
         Self {
             wram: [0; 0x2000],
             hram: [0; 0x7F],
             intf: 0,
             inte: 0,
+            cartridge: cartridge::load(rom),
             ppu: Ppu::new(),
             timer: Timer::new(),
             joypad: Joypad::new(),
@@ -66,9 +69,9 @@ impl Bus {
 
     pub fn read(&self, address: u16) -> u8 {
         match address {
-            ROM_START..=ROM_END => 0x76, // HALT for now
+            ROM_START..=ROM_END => self.cartridge.read_rom(address),
             VRAM_START..=VRAM_END => self.ppu.read_vram(address - VRAM_START),
-            CART_RAM_START..=CART_RAM_END => 0xFF,
+            CART_RAM_START..=CART_RAM_END => self.cartridge.read_ram(address - CART_RAM_START),
             WRAM_START..=WRAM_END => self.wram[(address - WRAM_START) as usize],
             ECHO_START..=ECHO_END => self.wram[(address - ECHO_START) as usize],
             OAM_START..=OAM_END => self.ppu.read_oam(address - OAM_START),
@@ -87,9 +90,11 @@ impl Bus {
 
     pub fn write(&mut self, address: u16, value: u8) {
         match address {
-            ROM_START..=ROM_END => {}
+            ROM_START..=ROM_END => self.cartridge.write_rom(address, value),
             VRAM_START..=VRAM_END => self.ppu.write_vram(address - VRAM_START, value),
-            CART_RAM_START..=CART_RAM_END => {}
+            CART_RAM_START..=CART_RAM_END => {
+                self.cartridge.write_ram(address - CART_RAM_START, value)
+            }
             WRAM_START..=WRAM_END => self.wram[(address - WRAM_START) as usize] = value,
             ECHO_START..=ECHO_END => self.wram[(address - ECHO_START) as usize] = value,
             OAM_START..=OAM_END => self.ppu.write_oam(address - OAM_START, value),

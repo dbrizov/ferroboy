@@ -30,11 +30,11 @@ struct App {
 }
 
 impl App {
-    fn new() -> Self {
+    fn new(rom: &[u8]) -> Self {
         Self {
             window: None,
             pixels: None,
-            emulator: Emulator::new(),
+            emulator: Emulator::new(rom),
             next_frame: Instant::now(),
         }
     }
@@ -108,7 +108,12 @@ impl ApplicationHandler for App {
 }
 
 fn main() {
+    let path = std::env::args()
+        .nth(1)
+        .expect("usage: ferroboy_desktop <rom.gb>");
+    let rom = std::fs::read(&path).unwrap_or_else(|e| panic!("cannot read {path}: {e}"));
+
     let event_loop = EventLoop::new().unwrap();
-    let mut app = App::new();
+    let mut app = App::new(&rom);
     event_loop.run_app(&mut app).unwrap();
 }

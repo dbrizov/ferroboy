@@ -8,10 +8,10 @@ pub struct Emulator {
 }
 
 impl Emulator {
-    pub fn new() -> Self {
+    pub fn new(rom: &[u8]) -> Self {
         Self {
             cpu: Cpu::new(),
-            bus: Bus::new(),
+            bus: Bus::new(rom),
         }
     }
 
@@ -22,7 +22,7 @@ impl Emulator {
     }
 
     pub fn run_frame(&mut self) {
-        while self.bus.ppu.take_frame_ready() {
+        while !self.bus.ppu.take_frame_ready() {
             self.step();
         }
     }
@@ -32,6 +32,6 @@ impl Emulator {
     }
 
     pub fn framebuffer(&self) -> &[u8; SCREEN_WIDTH * SCREEN_HEIGHT] {
-        &self.bus.ppu.framebuffer()
+        self.bus.ppu.framebuffer()
     }
 }
