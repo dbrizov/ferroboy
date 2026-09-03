@@ -1,0 +1,21 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug ferroboy_desktop",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "run",
+                    "--bin=ferroboy_desktop",
+                    "--package=ferroboy_desktop"
+                ]
+            },
+            "args": [],
+            "env": {
+                "RUST_BACKTRACE": "1"
+            }
+        }
+    ]
+}
