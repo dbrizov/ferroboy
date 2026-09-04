@@ -15,16 +15,39 @@ const FRAME_DOTS: u32 = SCANLINE_DOTS * SCANLINES as u32;
 
 const LCDC_ENABLED: u8 = 1 << 7;
 const TILE_BYTES: u16 = 16;
-const TILE_SIZE: u8 = 8;
 const TILES_PER_MAP_ROW: u16 = 32;
+const TILE_SIZE: u8 = 8;
 
 const LOW_MAP: u16 = 0x1800;
 const HIGH_MAP: u16 = 0x1C00;
-const SIGNED_TILE_BASE: u16 = 0x1000;
 
 const LCDC_BG_ENABLED: u8 = 1 << 0;
+const LCDC_OBJ_ENABLED: u8 = 1 << 1;
+const LCDC_OBJ_TALL: u8 = 1 << 2;
 const LCDC_BG_MAP_HIGH: u8 = 1 << 3;
-const LCDC_TILE_DATA_UNSIGNED: u8 = 1 << 4;
+const LCDC_TILE_DATA_LOW: u8 = 1 << 4;
+const LCDC_WINDOW_ENABLED: u8 = 1 << 5;
+const LCDC_WINDOW_MAP_HIGH: u8 = 1 << 6;
+
+const OBJ_BEHIND_BACKGROUND: u8 = 1 << 7;
+const OBJ_FLIP_Y: u8 = 1 << 6;
+const OBJ_FLIP_X: u8 = 1 << 5;
+const OBJ_PALETTE_1: u8 = 1 << 4;
+
+const OBJECTS_PER_LINE: usize = 10;
+
+const OBJ_X_BIAS: i16 = 8;
+const OBJ_Y_BIAS: i16 = 16;
+
+const WINDOW_X_BIAS: u8 = 7;
+
+struct Object {
+    index: u8,
+    x: u8,
+    tile: u8,
+    attributes: u8,
+    top: i16,
+}
 
 mod addr {
     pub const LCDC: u16 = 0xFF40;
@@ -63,6 +86,7 @@ pub struct Ppu {
     oam: [u8; 0xA0],
     mode: Mode,
     dots: u32,
+    window_line: u8,
     frame_ready: bool,
     framebuffer: [u8; SCREEN_WIDTH * SCREEN_HEIGHT],
 
@@ -86,6 +110,7 @@ impl Ppu {
             oam: [0; 0xA0],
             mode: Mode::OamScan,
             dots: 0,
+            window_line: 0,
             frame_ready: false,
             framebuffer: [0; SCREEN_WIDTH * SCREEN_HEIGHT],
 
@@ -145,6 +170,7 @@ impl Ppu {
 
         let mut raised = 0;
         if self.ly == VISIBLE_SCANLINES {
+            self.window_line = 0;
             self.mode = Mode::VBlank;
             self.frame_ready = true;
             raised |= interrupts::VBLANK | self.stat_interrupt(stat::VBLANK);
@@ -247,48 +273,167 @@ impl Ppu {
             _ => {}
         }
     }
+
     pub fn render_scanline(&mut self) {
-        let mut colors = [0u8; SCREEN_WIDTH];
+        let mut background = [0u8; SCREEN_WIDTH];
 
         if self.lcdc & LCDC_BG_ENABLED != 0 {
-            let y = self.ly.wrapping_add(self.scy);
-
-            for (x, color) in colors.iter_mut().enumerate() {
-                let x = (x as u8).wrapping_add(self.scx);
-                *color = self.background_color(x, y);
-            }
+            self.render_background(&mut background);
+            self.render_window(&mut background);
         }
 
         let line = self.ly as usize * SCREEN_WIDTH;
-        for (x, &color) in colors.iter().enumerate() {
+        for (x, &color) in background.iter().enumerate() {
             self.framebuffer[line + x] = shade(self.bgp, color);
+        }
+
+        if self.lcdc & LCDC_OBJ_ENABLED != 0 {
+            self.render_objects(&background);
         }
     }
 
-    fn background_color(&self, x: u8, y: u8) -> u8 {
+    fn render_background(&self, background: &mut [u8; SCREEN_WIDTH]) {
         let map = if self.lcdc & LCDC_BG_MAP_HIGH == 0 {
             LOW_MAP
         } else {
             HIGH_MAP
         };
+        let y = self.ly.wrapping_add(self.scy);
 
+        for (x, color) in background.iter_mut().enumerate() {
+            *color = self.tile_color(map, (x as u8).wrapping_add(self.scx), y);
+        }
+    }
+
+    fn render_window(&mut self, background: &mut [u8; SCREEN_WIDTH]) {
+        if self.lcdc & LCDC_WINDOW_ENABLED == 0 || self.ly < self.wy {
+            return;
+        }
+
+        let map = if self.lcdc & LCDC_WINDOW_MAP_HIGH == 0 {
+            LOW_MAP
+        } else {
+            HIGH_MAP
+        };
+        let start = self.wx.saturating_sub(WINDOW_X_BIAS) as usize;
+        if start >= SCREEN_WIDTH {
+            return;
+        }
+
+        for (x, color) in background.iter_mut().enumerate().skip(start) {
+            let window_x = (x - start) as u8;
+            *color = self.tile_color(map, window_x, self.window_line);
+        }
+
+        self.window_line = self.window_line.wrapping_add(1);
+    }
+
+    fn render_objects(&mut self, background: &[u8; SCREEN_WIDTH]) {
+        let height = if self.lcdc & LCDC_OBJ_TALL != 0 {
+            16
+        } else {
+            8
+        };
+        let line = self.ly as usize * SCREEN_WIDTH;
+
+        let mut visible = self.objects_on_line(height);
+        visible.sort_by_key(|object| std::cmp::Reverse((object.x, object.index)));
+
+        for object in visible {
+            for offset in 0..TILE_SIZE {
+                let screen_x = object.x as i16 - OBJ_X_BIAS + offset as i16;
+                if screen_x < 0 || screen_x >= SCREEN_WIDTH as i16 {
+                    continue;
+                }
+                let screen_x = screen_x as usize;
+
+                let color = self.object_color(&object, offset, height);
+                if color == 0 {
+                    continue;
+                }
+                if object.attributes & OBJ_BEHIND_BACKGROUND != 0 && background[screen_x] != 0 {
+                    continue;
+                }
+
+                let palette = if object.attributes & OBJ_PALETTE_1 == 0 {
+                    self.obp0
+                } else {
+                    self.obp1
+                };
+                self.framebuffer[line + screen_x] = shade(palette, color);
+            }
+        }
+    }
+
+    fn objects_on_line(&self, height: u8) -> Vec<Object> {
+        let mut found = Vec::with_capacity(OBJECTS_PER_LINE);
+
+        for index in 0..40u8 {
+            let entry = index as usize * 4;
+            let top = self.oam[entry] as i16 - OBJ_Y_BIAS;
+            if (self.ly as i16) < top || (self.ly as i16) >= top + height as i16 {
+                continue;
+            }
+
+            found.push(Object {
+                index,
+                x: self.oam[entry + 1],
+                tile: self.oam[entry + 2],
+                attributes: self.oam[entry + 3],
+                top,
+            });
+
+            if found.len() == OBJECTS_PER_LINE {
+                break;
+            }
+        }
+
+        found
+    }
+
+    fn object_color(&self, object: &Object, offset: u8, height: u8) -> u8 {
+        let mut row = (self.ly as i16 - object.top) as u8;
+        if object.attributes & OBJ_FLIP_Y != 0 {
+            row = height - 1 - row;
+        }
+
+        let tile = if height == 16 {
+            object.tile & 0xFE
+        } else {
+            object.tile
+        };
+
+        let base = (tile as u16 * TILE_BYTES + row as u16 * 2) as usize;
+        let low = self.vram[base];
+        let high = self.vram[base + 1];
+        let bit = if object.attributes & OBJ_FLIP_X != 0 {
+            offset
+        } else {
+            7 - offset
+        };
+
+        (high >> bit & 1) << 1 | (low >> bit & 1)
+    }
+
+    fn tile_color(&self, map: u16, x: u8, y: u8) -> u8 {
         let entry = (y / TILE_SIZE) as u16 * TILES_PER_MAP_ROW + (x / TILE_SIZE) as u16;
         let tile = self.vram[(map + entry) as usize];
+        let base = tile_address(self.lcdc, tile);
 
-        let row = tile_address(self.lcdc, tile) + (y % TILE_SIZE) as u16 * 2;
-        let low_plane = self.vram[row as usize];
-        let high_plane = self.vram[row as usize + 1];
-        let column = 7 - x % TILE_SIZE;
+        let row = (y % TILE_SIZE) as u16 * 2;
+        let low = self.vram[(base + row) as usize];
+        let high = self.vram[(base + row + 1) as usize];
+        let bit = 7 - (x % TILE_SIZE);
 
-        (high_plane >> column & 1) << 1 | (low_plane >> column & 1)
+        (high >> bit & 1) << 1 | (low >> bit & 1)
     }
 }
 
 fn tile_address(lcdc: u8, tile: u8) -> u16 {
-    if lcdc & LCDC_TILE_DATA_UNSIGNED != 0 {
+    if lcdc & LCDC_TILE_DATA_LOW != 0 {
         tile as u16 * TILE_BYTES
     } else {
-        SIGNED_TILE_BASE.wrapping_add_signed(tile as i8 as i16 * TILE_BYTES as i16)
+        (0x1000 + (tile as i8 as i16 * TILE_BYTES as i16)) as u16
     }
 }
 

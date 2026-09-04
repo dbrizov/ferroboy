@@ -72,6 +72,14 @@ impl Bus {
         self.intf |= self.serial.tick(t_cycles);
     }
 
+    fn oam_dma(&mut self, source_high: u8) {
+        let source = (source_high as u16) << 8;
+        for offset in 0..OAM_END - OAM_START + 1 {
+            let byte = self.read(source + offset);
+            self.ppu.write_oam(offset, byte);
+        }
+    }
+
     pub fn read(&self, address: u16) -> u8 {
         match address {
             ROM_START..=ROM_END
@@ -114,7 +122,7 @@ impl Bus {
             TIMER_START..=TIMER_END => self.timer.write(address, value),
             IF => self.intf = value & 0x1F,
             APU_START..=APU_END => {}
-            OAM_DMA => {}
+            OAM_DMA => self.oam_dma(value),
             PPU_REG_START..=PPU_REG_END => self.ppu.write_reg(address, value),
             HRAM_START..=HRAM_END => self.hram[(address - HRAM_START) as usize] = value,
             BOOT_ROM_DISABLE => self.boot_rom_mapped = false,

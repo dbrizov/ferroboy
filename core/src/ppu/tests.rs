@@ -129,8 +129,24 @@ fn write_striped_tile(ppu: &mut Ppu, index: u8) {
     }
 }
 
+fn write_solid_tile(ppu: &mut Ppu, index: u8) {
+    let base = index as u16 * TILE_BYTES;
+    for byte in 0..TILE_BYTES {
+        ppu.write_vram(base + byte, 0xFF);
+    }
+}
+
 fn identity_palette(ppu: &mut Ppu) {
     ppu.write_reg(addr::BGP, 0b11_10_01_00);
+    ppu.write_reg(addr::OBP0, 0b11_10_01_00);
+}
+
+fn put_object(ppu: &mut Ppu, index: u8, y: u8, x: u8, tile: u8, attributes: u8) {
+    let entry = index as u16 * 4;
+    ppu.write_oam(entry, y);
+    ppu.write_oam(entry + 1, x);
+    ppu.write_oam(entry + 2, tile);
+    ppu.write_oam(entry + 3, attributes);
 }
 
 fn rendered_line(ppu: &mut Ppu, line: u8) -> Vec<u8> {
@@ -155,8 +171,8 @@ fn the_palette_is_an_indirection_not_a_shade() {
     let mut ppu = Ppu::new();
     ppu.write_reg(addr::LCDC, ON);
     write_striped_tile(&mut ppu, 0);
-    ppu.write_reg(addr::BGP, 0b00_01_10_11);
 
+    ppu.write_reg(addr::BGP, 0b00_01_10_11);
     assert_eq!(&rendered_line(&mut ppu, 0)[..8], &[3, 2, 1, 0, 3, 2, 1, 0]);
 }
 
@@ -166,8 +182,8 @@ fn scx_scrolls_the_viewport() {
     identity_palette(&mut ppu);
     ppu.write_reg(addr::LCDC, ON);
     write_striped_tile(&mut ppu, 0);
-    ppu.write_reg(addr::SCX, 2);
 
+    ppu.write_reg(addr::SCX, 2);
     assert_eq!(&rendered_line(&mut ppu, 0)[..6], &[2, 3, 0, 1, 2, 3]);
 }
 
@@ -186,14 +202,14 @@ fn scy_selects_which_row_of_the_map_a_scanline_reads() {
 }
 
 #[test]
-fn the_signed_addressing_mode_reaches_the_block_below_0x9000() {
+fn the_signed_addressing_mode_reaches_the_other_block() {
     assert_eq!(tile_address(0x00, 0x00), 0x1000);
     assert_eq!(tile_address(0x00, 0x7F), 0x1000 + 0x7F * 16);
     assert_eq!(tile_address(0x00, 0xFF), 0x1000 - 16);
     assert_eq!(tile_address(0x00, 0x80), 0x0800);
 
-    assert_eq!(tile_address(LCDC_TILE_DATA_UNSIGNED, 0x00), 0x0000);
-    assert_eq!(tile_address(LCDC_TILE_DATA_UNSIGNED, 0xFF), 0xFF * 16);
+    assert_eq!(tile_address(LCDC_TILE_DATA_LOW, 0x00), 0x0000);
+    assert_eq!(tile_address(LCDC_TILE_DATA_LOW, 0xFF), 0xFF * 16);
 }
 
 #[test]
@@ -235,4 +251,152 @@ fn a_whole_frame_of_scanlines_lands_in_the_right_rows() {
     for line in 0..SCREEN_HEIGHT {
         assert_eq!(ppu.framebuffer[line * SCREEN_WIDTH + 1], 1, "line {line}");
     }
+}
+
+#[test]
+fn the_window_covers_the_background_from_wx_onward() {
+    let mut ppu = Ppu::new();
+    identity_palette(&mut ppu);
+    ppu.write_reg(addr::LCDC, ON | LCDC_WINDOW_ENABLED | LCDC_WINDOW_MAP_HIGH);
+
+    write_solid_tile(&mut ppu, 1);
+    ppu.write_vram(HIGH_MAP, 1);
+
+    ppu.write_reg(addr::WY, 0);
+    ppu.write_reg(addr::WX, WINDOW_X_BIAS + 40);
+
+    let line = rendered_line(&mut ppu, 0);
+    assert_eq!(line[39], 0, "still background here");
+    assert_eq!(line[40], 3, "the window starts at WX - 7");
+    assert_eq!(line[47], 3, "and covers its whole first tile");
+}
+
+#[test]
+fn the_window_does_not_start_before_wy() {
+    let mut ppu = Ppu::new();
+    identity_palette(&mut ppu);
+    ppu.write_reg(addr::LCDC, ON | LCDC_WINDOW_ENABLED);
+    write_solid_tile(&mut ppu, 7);
+    ppu.write_vram(LOW_MAP, 7);
+    ppu.write_reg(addr::WY, 5);
+    ppu.write_reg(addr::WX, WINDOW_X_BIAS);
+
+    rendered_line(&mut ppu, 4);
+    assert_eq!(ppu.window_line, 0, "not yet");
+
+    rendered_line(&mut ppu, 5);
+    assert_eq!(ppu.window_line, 1, "the counter moves only when drawn");
+}
+
+#[test]
+fn a_sprite_is_drawn_at_its_biased_coordinates() {
+    let mut ppu = Ppu::new();
+    identity_palette(&mut ppu);
+    ppu.write_reg(addr::LCDC, ON | LCDC_OBJ_ENABLED);
+    write_solid_tile(&mut ppu, 2);
+    put_object(&mut ppu, 0, 16, 8, 2, 0);
+
+    let line = rendered_line(&mut ppu, 0);
+    assert_eq!(&line[..8], &[3; 8]);
+    assert_eq!(line[8], 0, "eight pixels wide");
+}
+
+#[test]
+fn color_zero_is_transparent() {
+    let mut ppu = Ppu::new();
+    identity_palette(&mut ppu);
+    ppu.write_reg(addr::LCDC, ON | LCDC_OBJ_ENABLED);
+    write_striped_tile(&mut ppu, 3);
+    put_object(&mut ppu, 0, 16, 8, 3, 0);
+
+    let line = rendered_line(&mut ppu, 0);
+    assert_eq!(&line[..4], &[0, 1, 2, 3], "color 0 shows the background");
+}
+
+#[test]
+fn the_priority_bit_puts_a_sprite_behind_non_zero_background() {
+    let mut ppu = Ppu::new();
+    identity_palette(&mut ppu);
+    ppu.write_reg(addr::LCDC, ON | LCDC_OBJ_ENABLED);
+    write_solid_tile(&mut ppu, 4);
+    write_striped_tile(&mut ppu, 0);
+    put_object(&mut ppu, 0, 16, 8, 4, OBJ_BEHIND_BACKGROUND);
+
+    let line = rendered_line(&mut ppu, 0);
+    assert_eq!(line[0], 3, "background color 0, so the sprite wins");
+    assert_eq!(line[1], 1, "background color 1, so the sprite loses");
+    assert_eq!(line[2], 2);
+}
+
+#[test]
+fn flipping_reverses_the_tile() {
+    let mut ppu = Ppu::new();
+    identity_palette(&mut ppu);
+    ppu.write_reg(addr::LCDC, ON | LCDC_OBJ_ENABLED);
+    write_striped_tile(&mut ppu, 3);
+
+    put_object(&mut ppu, 0, 16, 8, 3, 0);
+    assert_eq!(&rendered_line(&mut ppu, 0)[..4], &[0, 1, 2, 3]);
+
+    put_object(&mut ppu, 0, 16, 8, 3, OBJ_FLIP_X);
+    assert_eq!(&rendered_line(&mut ppu, 0)[..4], &[3, 2, 1, 0]);
+}
+
+#[test]
+fn the_lower_x_wins_and_ties_go_to_oam_order() {
+    let mut ppu = Ppu::new();
+    identity_palette(&mut ppu);
+    ppu.write_reg(addr::LCDC, ON | LCDC_OBJ_ENABLED);
+    write_solid_tile(&mut ppu, 1);
+    write_striped_tile(&mut ppu, 2);
+
+    put_object(&mut ppu, 0, 16, 9, 2, 0);
+    put_object(&mut ppu, 1, 16, 8, 1, 0);
+    assert_eq!(
+        rendered_line(&mut ppu, 0)[1],
+        3,
+        "the solid one at x=8 wins"
+    );
+
+    put_object(&mut ppu, 0, 16, 8, 2, 0);
+    put_object(&mut ppu, 1, 16, 8, 1, 0);
+    assert_eq!(rendered_line(&mut ppu, 0)[1], 1, "index 0 wins the tie");
+}
+
+#[test]
+fn only_ten_sprites_are_drawn_on_a_line() {
+    let mut ppu = Ppu::new();
+    identity_palette(&mut ppu);
+    ppu.write_reg(addr::LCDC, ON | LCDC_OBJ_ENABLED);
+    write_solid_tile(&mut ppu, 1);
+
+    for index in 0..11u8 {
+        put_object(&mut ppu, index, 16, 8 + index * 8, 1, 0);
+    }
+
+    let line = rendered_line(&mut ppu, 0);
+    assert_eq!(line[79], 3, "the tenth sprite is drawn");
+    assert_eq!(line[80], 0, "the eleventh is not");
+}
+
+#[test]
+fn a_tall_sprite_is_two_stacked_tiles_and_ignores_bit_0() {
+    let mut ppu = Ppu::new();
+    identity_palette(&mut ppu);
+    ppu.write_reg(addr::LCDC, ON | LCDC_OBJ_ENABLED | LCDC_OBJ_TALL);
+    write_solid_tile(&mut ppu, 4);
+    write_striped_tile(&mut ppu, 5);
+
+    put_object(&mut ppu, 0, 16, 8, 5, 0);
+
+    assert_eq!(
+        rendered_line(&mut ppu, 0)[..4],
+        [3, 3, 3, 3],
+        "tile 4 on top"
+    );
+    assert_eq!(
+        rendered_line(&mut ppu, 8)[..4],
+        [0, 1, 2, 3],
+        "tile 5 below"
+    );
 }
