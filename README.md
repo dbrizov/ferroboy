@@ -31,4 +31,3 @@ cargo fmt && cargo clippy --all-targets
 
 ## Other emulators
 - [SameBoy](https://github.com/LIJI32/SameBoy)
-- [Gameboy Emulator Development Guide](https://hacktix.github.io/GBEDG/)
