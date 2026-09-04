@@ -53,7 +53,7 @@ impl App {
 impl ApplicationHandler for App {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         let attributes = Window::default_attributes()
-            .with_title("ferroboy")
+            .with_title("FerroBoy")
             .with_inner_size(LogicalSize::new(
                 GB_WIDTH * WINDOW_SCALE,
                 GB_HEIGHT * WINDOW_SCALE,
