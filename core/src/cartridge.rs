@@ -114,6 +114,7 @@ mod tests {
     const CART_TYPE_MBC1: u8 = 0x01;
 
     const ROM_SIZE_32_KIB: u8 = 0x00;
+    const ROM_SIZE_64_KIB: u8 = 0x01;
     const ROM_SIZE_1_MIB: u8 = 0x05;
 
     const RAM_SIZE_NONE: u8 = 0x00;
@@ -162,6 +163,24 @@ mod tests {
         rom[addr::CHECKSUM] = header_checksum(&rom);
 
         assert_eq!(Header::parse(&rom).title, "A".repeat(15));
+    }
+
+    #[test]
+    fn load_takes_a_32_kib_mbc1_cartridge() {
+        // Banks 0 and 1 only, and bank 1 is selected at reset, so it behaves
+        // exactly like no mapper. Every Blargg test ROM is one of these.
+        let rom = rom_with(CART_TYPE_MBC1, ROM_SIZE_32_KIB, RAM_SIZE_NONE);
+
+        assert_eq!(load(&rom).read_rom(addr::CART_TYPE as u16), CART_TYPE_MBC1);
+    }
+
+    #[test]
+    #[should_panic(expected = "unsupported cartridge type 0x01")]
+    fn load_refuses_an_mbc1_cartridge_that_needs_banking() {
+        let mut rom = rom_with(CART_TYPE_MBC1, ROM_SIZE_64_KIB, RAM_SIZE_NONE);
+        rom.resize(0x10000, HALT);
+
+        load(&rom);
     }
 
     #[test]
