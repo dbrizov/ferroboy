@@ -44,8 +44,8 @@ const CONTROLLER: [(gilrs::Button, Button); 8] = [
     (gilrs::Button::DPadLeft, Button::Left),
     (gilrs::Button::DPadUp, Button::Up),
     (gilrs::Button::DPadDown, Button::Down),
-    (gilrs::Button::South, Button::A),
-    (gilrs::Button::East, Button::B),
+    (gilrs::Button::South, Button::B),
+    (gilrs::Button::East, Button::A),
     (gilrs::Button::Select, Button::Select),
     (gilrs::Button::Start, Button::Start),
 ];

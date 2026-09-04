@@ -4,6 +4,10 @@ const RAM_BYTES: usize = 16;
 const SAMPLES: usize = 32;
 const MAX_PERIOD: u16 = 2047;
 
+// The first fetch after a trigger runs 6 T-cycles late (binjgb's
+// WAVE_TRIGGER_DELAY_TICKS); every later fetch is period-spaced.
+const TRIGGER_DELAY: u16 = 6;
+
 pub struct Wave {
     active: bool,
     dac_enabled: bool,
@@ -11,6 +15,7 @@ pub struct Wave {
     period: u16,
     timer: u16,
     position: usize,
+    fetch_age: u32,
     length: Length,
     ram: [u8; RAM_BYTES],
 }
@@ -24,18 +29,25 @@ impl Wave {
             period: 0,
             timer: 0,
             position: 0,
+            fetch_age: u32::MAX,
             length: Length::new(256),
             ram: [0; RAM_BYTES],
         }
     }
 
     pub fn tick(&mut self) {
+        if !self.active {
+            return;
+        }
+
+        self.fetch_age = self.fetch_age.saturating_add(1);
         if self.timer > 0 {
             self.timer -= 1;
         }
         if self.timer == 0 {
             self.timer = (MAX_PERIOD + 1 - self.period) * 2;
             self.position = (self.position + 1) % SAMPLES;
+            self.fetch_age = 0;
         }
     }
 
@@ -118,16 +130,41 @@ impl Wave {
     }
 
     fn trigger(&mut self, next_clocks: bool) {
+        // DMG bug: a trigger landing 2 T-cycles before a fetch corrupts wave
+        // RAM with the byte about to be read - byte 0 alone if it comes from
+        // the first four, the whole aligned four-byte block otherwise.
+        if self.active && self.timer == 2 {
+            self.corrupt_ram();
+        }
+
         self.active = self.dac_enabled;
         self.length.trigger(next_clocks);
-        self.timer = (MAX_PERIOD + 1 - self.period) * 2;
+        self.timer = (MAX_PERIOD + 1 - self.period) * 2 + TRIGGER_DELAY;
         self.position = 0;
     }
 
-    // With the channel running the DMG only exposes wave RAM during the cycle
-    // it fetches a sample; every other access reads open bus and is dropped.
+    fn corrupt_ram(&mut self) {
+        let next_byte = (self.position + 1) % SAMPLES / 2;
+        if next_byte < 4 {
+            self.ram[0] = self.ram[next_byte];
+        } else {
+            self.ram
+                .copy_within(next_byte & !3..(next_byte & !3) + 4, 0);
+        }
+    }
+
+    // The DMG exposes wave RAM only on the 2 T-cycles of the channel's own
+    // fetch, and the access lands on the byte being fetched, not the one
+    // addressed.
+    fn access_window_open(&self) -> bool {
+        self.fetch_age <= 1
+    }
+
     pub fn read_ram(&self, offset: u16) -> u8 {
         if self.active {
+            if self.access_window_open() {
+                return self.ram[self.position / 2];
+            }
             return 0xFF;
         }
         self.ram[offset as usize]
@@ -135,6 +172,9 @@ impl Wave {
 
     pub fn write_ram(&mut self, offset: u16, value: u8) {
         if self.active {
+            if self.access_window_open() {
+                self.ram[self.position / 2] = value;
+            }
             return;
         }
         self.ram[offset as usize] = value;

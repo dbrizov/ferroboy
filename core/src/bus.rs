@@ -38,6 +38,7 @@ const IE: u16 = 0xFFFF;
 pub struct Bus {
     wram: [u8; 0x2000],
     hram: [u8; 0x7F],
+    access_cycles: u8,
     pub intf: u8, // IF register
     pub inte: u8, // IE register
 
@@ -57,6 +58,7 @@ impl Bus {
             wram: [0; 0x2000],
             hram: [0; 0x7F],
             intf: 0,
+            access_cycles: 0,
             inte: 0,
             cartridge,
             boot_rom: boot_rom.to_vec(),
@@ -69,6 +71,15 @@ impl Bus {
         }
     }
 
+    fn access_cycle(&mut self) {
+        self.tick(4);
+        self.access_cycles += 4;
+    }
+
+    pub fn take_access_cycles(&mut self) -> u8 {
+        std::mem::take(&mut self.access_cycles)
+    }
+
     pub fn tick(&mut self, t_cycles: u8) {
         self.intf |= self.apu.tick(t_cycles);
         self.intf |= self.ppu.tick(t_cycles);
@@ -79,7 +90,7 @@ impl Bus {
     fn oam_dma(&mut self, source_high: u8) {
         let source = (source_high as u16) << 8;
         for offset in 0..OAM_END - OAM_START + 1 {
-            let byte = self.read(source + offset);
+            let byte = self.peek(source + offset);
             self.ppu.write_oam(offset, byte);
         }
     }
@@ -100,7 +111,12 @@ impl Bus {
         self.cartridge.load_battery_ram(saved);
     }
 
-    pub fn read(&self, address: u16) -> u8 {
+    pub fn read(&mut self, address: u16) -> u8 {
+        self.access_cycle();
+        self.peek(address)
+    }
+
+    pub fn peek(&self, address: u16) -> u8 {
         match address {
             ROM_START..=ROM_END
                 if self.boot_rom_mapped && (address as usize) < self.boot_rom.len() =>
@@ -127,6 +143,7 @@ impl Bus {
     }
 
     pub fn write(&mut self, address: u16, value: u8) {
+        self.access_cycle();
         match address {
             ROM_START..=ROM_END => self.cartridge.write_rom(address, value),
             VRAM_START..=VRAM_END => self.ppu.write_vram(address - VRAM_START, value),

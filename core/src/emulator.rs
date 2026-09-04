@@ -43,12 +43,17 @@ impl Emulator {
     }
 
     pub fn read(&self, address: u16) -> u8 {
-        self.bus.read(address)
+        self.bus.peek(address)
     }
 
     pub fn step(&mut self) -> u8 {
         let cycles = self.cpu.step(&mut self.bus);
-        self.bus.tick(cycles);
+        let spent = self.bus.take_access_cycles();
+        debug_assert!(
+            spent <= cycles,
+            "{spent} cycles of bus access in a {cycles} cycle instruction"
+        );
+        self.bus.tick(cycles.saturating_sub(spent));
         cycles
     }
 
