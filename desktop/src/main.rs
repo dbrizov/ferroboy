@@ -4,7 +4,7 @@ use std::time::{Duration, Instant};
 use ferroboy::{Emulator, SCREEN_HEIGHT, SCREEN_WIDTH};
 use pixels::{Pixels, SurfaceTexture};
 use winit::application::ApplicationHandler;
-use winit::dpi::LogicalSize;
+use winit::dpi::{LogicalSize, PhysicalPosition};
 use winit::event::WindowEvent;
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
 use winit::window::{Window, WindowId};
@@ -60,6 +60,8 @@ impl ApplicationHandler for App {
             ));
 
         let window = Arc::new(event_loop.create_window(attributes).unwrap());
+        center(&window);
+
         let size = window.inner_size();
         let surface = SurfaceTexture::new(size.width, size.height, window.clone());
 
@@ -105,6 +107,21 @@ impl ApplicationHandler for App {
 
         event_loop.set_control_flow(ControlFlow::WaitUntil(self.next_frame));
     }
+}
+
+fn center(window: &Window) {
+    let Some(monitor) = window.current_monitor() else {
+        return;
+    };
+
+    let screen = monitor.size();
+    let outer = window.outer_size();
+    let origin = monitor.position();
+
+    window.set_outer_position(PhysicalPosition::new(
+        origin.x + (screen.width as i32 - outer.width as i32) / 2,
+        origin.y + (screen.height as i32 - outer.height as i32) / 2,
+    ));
 }
 
 fn main() {
