@@ -17,11 +17,26 @@
       font-family: monospace;
     }
     canvas { image-rendering: pixelated; outline: none; }
+    /* The native file input renders its own "Choose File" button whose text the
+       browser owns, so it is hidden and a styled label drives it instead. */
+    #rom { display: none; }
+    label[for="rom"] {
+      padding: 0.5rem 1rem;
+      border: none;
+      border-radius: 4px;
+      background: #9bbc0f;
+      color: #0f380f;
+      font-weight: bold;
+      cursor: pointer;
+      user-select: none;
+    }
+    label[for="rom"]:hover { background: #8bac0f; }
   </style>
 </head>
 <body>
   <div id="screen"></div>
   <input type="file" id="rom" accept=".gb,.gbc">
+  <label for="rom">Load ROM</label>
   <link data-trunk rel="rust" data-bin="ferroboy_web" />
 </body>
 </html>
