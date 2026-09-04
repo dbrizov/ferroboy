@@ -15,11 +15,11 @@ cargo fmt && cargo clippy --all-targets
 ```
 
 # Controls
-| Game Boy | Keyboard | Controller |
+| Game Boy | Keyboard | XBOX Controller |
 | --- | --- | --- |
 | D-pad | Arrow keys | D-pad |
-| A | X | A |
-| B | Z | B |
+| A | X | B |
+| B | Z | A |
 | Select | Backspace | Back |
 | Start | Enter | Start |
 
