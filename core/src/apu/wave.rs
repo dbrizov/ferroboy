@@ -9,6 +9,7 @@ const MAX_PERIOD: u16 = 2047;
 const TRIGGER_DELAY: u16 = 6;
 
 pub struct Wave {
+    cgb: bool,
     active: bool,
     dac_enabled: bool,
     volume: u8,
@@ -21,8 +22,9 @@ pub struct Wave {
 }
 
 impl Wave {
-    pub fn new() -> Self {
+    pub fn new(cgb: bool) -> Self {
         Self {
+            cgb,
             active: false,
             dac_enabled: false,
             volume: 0,
@@ -87,7 +89,7 @@ impl Wave {
     pub fn power_off(&mut self) {
         let ram = self.ram;
         let counter = self.length.counter();
-        *self = Self::new();
+        *self = Self::new(self.cgb);
         self.ram = ram;
         self.length.restore(counter);
     }
@@ -157,7 +159,7 @@ impl Wave {
     // fetch, and the access lands on the byte being fetched, not the one
     // addressed.
     fn access_window_open(&self) -> bool {
-        self.fetch_age <= 1
+        self.cgb || self.fetch_age <= 1
     }
 
     pub fn read_ram(&self, offset: u16) -> u8 {

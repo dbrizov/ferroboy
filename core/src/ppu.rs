@@ -33,6 +33,17 @@ const OBJ_BEHIND_BACKGROUND: u8 = 1 << 7;
 const OBJ_FLIP_Y: u8 = 1 << 6;
 const OBJ_FLIP_X: u8 = 1 << 5;
 const OBJ_PALETTE_1: u8 = 1 << 4;
+const OBJ_BANK: u8 = 1 << 3;
+const OBJ_CGB_PALETTE: u8 = 0x07;
+
+const BG_PRIORITY: u8 = 1 << 7;
+const BG_FLIP_Y: u8 = 1 << 6;
+const BG_FLIP_X: u8 = 1 << 5;
+const BG_BANK: u8 = 1 << 3;
+const BG_CGB_PALETTE: u8 = 0x07;
+
+const VRAM_BANK_BYTES: usize = 0x2000;
+const PALETTE_RAM_BYTES: usize = 64;
 
 const OBJECTS_PER_LINE: usize = 10;
 
@@ -40,6 +51,12 @@ const OBJ_X_BIAS: i16 = 8;
 const OBJ_Y_BIAS: i16 = 16;
 
 const WINDOW_X_BIAS: u8 = 7;
+
+#[derive(Clone, Copy, Default)]
+struct BgPixel {
+    color: u8,
+    attributes: u8,
+}
 
 struct Object {
     index: u8,
@@ -62,6 +79,11 @@ mod addr {
     pub const OBP1: u16 = 0xFF49;
     pub const WY: u16 = 0xFF4A;
     pub const WX: u16 = 0xFF4B;
+    pub const VBK: u16 = 0xFF4F;
+    pub const BCPS: u16 = 0xFF68;
+    pub const BCPD: u16 = 0xFF69;
+    pub const OCPS: u16 = 0xFF6A;
+    pub const OCPD: u16 = 0xFF6B;
 }
 
 mod stat {
@@ -82,13 +104,15 @@ pub enum Mode {
 }
 
 pub struct Ppu {
-    vram: [u8; 0x2000],
+    cgb: bool,
+    vram: [u8; 2 * VRAM_BANK_BYTES],
     oam: [u8; 0xA0],
     mode: Mode,
     dots: u32,
     window_line: u8,
     frame_ready: bool,
-    framebuffer: [u8; SCREEN_WIDTH * SCREEN_HEIGHT],
+    hblank_started: bool,
+    framebuffer: [u16; SCREEN_WIDTH * SCREEN_HEIGHT],
 
     lcdc: u8,
     stat: u8,
@@ -101,17 +125,24 @@ pub struct Ppu {
     obp1: u8,
     wy: u8,
     wx: u8,
+    vbk: u8,
+    bcps: u8,
+    ocps: u8,
+    bg_palette: [u8; PALETTE_RAM_BYTES],
+    ob_palette: [u8; PALETTE_RAM_BYTES],
 }
 
 impl Ppu {
-    pub fn new() -> Self {
+    pub fn new(cgb: bool) -> Self {
         Self {
-            vram: [0; 0x2000],
+            cgb,
+            vram: [0; 2 * VRAM_BANK_BYTES],
             oam: [0; 0xA0],
             mode: Mode::OamScan,
             dots: 0,
             window_line: 0,
             frame_ready: false,
+            hblank_started: false,
             framebuffer: [0; SCREEN_WIDTH * SCREEN_HEIGHT],
 
             lcdc: 0x91, // what the boot ROM leaves behind: LCD on, BG on
@@ -125,6 +156,11 @@ impl Ppu {
             obp1: 0xFF,
             wy: 0,
             wx: 0,
+            vbk: 0,
+            bcps: 0,
+            ocps: 0,
+            bg_palette: [0xFF; PALETTE_RAM_BYTES],
+            ob_palette: [0xFF; PALETTE_RAM_BYTES],
         }
     }
 
@@ -150,6 +186,7 @@ impl Ppu {
             Mode::Drawing if self.dots >= DRAWING_DOTS => {
                 self.dots -= DRAWING_DOTS;
                 self.mode = Mode::HBlank;
+                self.hblank_started = true;
                 self.render_scanline();
                 self.stat_interrupt(stat::HBLANK)
             }
@@ -208,16 +245,20 @@ impl Ppu {
         std::mem::take(&mut self.frame_ready)
     }
 
-    pub fn framebuffer(&self) -> &[u8; SCREEN_WIDTH * SCREEN_HEIGHT] {
+    pub fn take_hblank_start(&mut self) -> bool {
+        std::mem::take(&mut self.hblank_started)
+    }
+
+    pub fn framebuffer(&self) -> &[u16; SCREEN_WIDTH * SCREEN_HEIGHT] {
         &self.framebuffer
     }
 
     pub fn read_vram(&self, offset: u16) -> u8 {
-        self.vram[offset as usize]
+        self.vram[self.vbk as usize * VRAM_BANK_BYTES + offset as usize]
     }
 
     pub fn write_vram(&mut self, offset: u16, value: u8) {
-        self.vram[offset as usize] = value;
+        self.vram[self.vbk as usize * VRAM_BANK_BYTES + offset as usize] = value;
     }
 
     pub fn read_oam(&self, offset: u16) -> u8 {
@@ -241,6 +282,11 @@ impl Ppu {
             addr::OBP1 => self.obp1,
             addr::WY => self.wy,
             addr::WX => self.wx,
+            addr::VBK => 0xFE | self.vbk,
+            addr::BCPS => self.bcps | 0x40,
+            addr::BCPD => self.bg_palette[(self.bcps & 0x3F) as usize],
+            addr::OCPS => self.ocps | 0x40,
+            addr::OCPD => self.ob_palette[(self.ocps & 0x3F) as usize],
             _ => 0xFF,
         }
     }
@@ -270,21 +316,46 @@ impl Ppu {
             addr::OBP1 => self.obp1 = value,
             addr::WY => self.wy = value,
             addr::WX => self.wx = value,
+            addr::VBK => self.vbk = value & 1,
+            addr::BCPS => self.bcps = value & 0xBF,
+            addr::BCPD => {
+                self.bg_palette[(self.bcps & 0x3F) as usize] = value;
+                if self.bcps & 0x80 != 0 {
+                    self.bcps = 0x80 | (self.bcps + 1) & 0x3F;
+                }
+            }
+            addr::OCPS => self.ocps = value & 0xBF,
+            addr::OCPD => {
+                self.ob_palette[(self.ocps & 0x3F) as usize] = value;
+                if self.ocps & 0x80 != 0 {
+                    self.ocps = 0x80 | (self.ocps + 1) & 0x3F;
+                }
+            }
             _ => {}
         }
     }
 
     pub fn render_scanline(&mut self) {
-        let mut background = [0u8; SCREEN_WIDTH];
+        let mut background = [BgPixel::default(); SCREEN_WIDTH];
 
-        if self.lcdc & LCDC_BG_ENABLED != 0 {
+        // On the CGB, LCDC bit 0 no longer blanks the background - it only
+        // demotes its priority against sprites.
+        if self.cgb || self.lcdc & LCDC_BG_ENABLED != 0 {
             self.render_background(&mut background);
             self.render_window(&mut background);
         }
 
         let line = self.ly as usize * SCREEN_WIDTH;
-        for (x, &color) in background.iter().enumerate() {
-            self.framebuffer[line + x] = shade(self.bgp, color);
+        for (x, pixel) in background.iter().enumerate() {
+            self.framebuffer[line + x] = if self.cgb {
+                color_555(
+                    &self.bg_palette,
+                    pixel.attributes & BG_CGB_PALETTE,
+                    pixel.color,
+                )
+            } else {
+                shade(self.bgp, pixel.color) as u16
+            };
         }
 
         if self.lcdc & LCDC_OBJ_ENABLED != 0 {
@@ -292,7 +363,7 @@ impl Ppu {
         }
     }
 
-    fn render_background(&self, background: &mut [u8; SCREEN_WIDTH]) {
+    fn render_background(&self, background: &mut [BgPixel; SCREEN_WIDTH]) {
         let map = if self.lcdc & LCDC_BG_MAP_HIGH == 0 {
             LOW_MAP
         } else {
@@ -300,12 +371,12 @@ impl Ppu {
         };
         let y = self.ly.wrapping_add(self.scy);
 
-        for (x, color) in background.iter_mut().enumerate() {
-            *color = self.tile_color(map, (x as u8).wrapping_add(self.scx), y);
+        for (x, pixel) in background.iter_mut().enumerate() {
+            *pixel = self.tile_pixel(map, (x as u8).wrapping_add(self.scx), y);
         }
     }
 
-    fn render_window(&mut self, background: &mut [u8; SCREEN_WIDTH]) {
+    fn render_window(&mut self, background: &mut [BgPixel; SCREEN_WIDTH]) {
         if self.lcdc & LCDC_WINDOW_ENABLED == 0 || self.ly < self.wy {
             return;
         }
@@ -320,15 +391,15 @@ impl Ppu {
             return;
         }
 
-        for (x, color) in background.iter_mut().enumerate().skip(start) {
+        for (x, pixel) in background.iter_mut().enumerate().skip(start) {
             let window_x = (x - start) as u8;
-            *color = self.tile_color(map, window_x, self.window_line);
+            *pixel = self.tile_pixel(map, window_x, self.window_line);
         }
 
         self.window_line = self.window_line.wrapping_add(1);
     }
 
-    fn render_objects(&mut self, background: &[u8; SCREEN_WIDTH]) {
+    fn render_objects(&mut self, background: &[BgPixel; SCREEN_WIDTH]) {
         let height = if self.lcdc & LCDC_OBJ_TALL != 0 {
             16
         } else {
@@ -337,7 +408,12 @@ impl Ppu {
         let line = self.ly as usize * SCREEN_WIDTH;
 
         let mut visible = self.objects_on_line(height);
-        visible.sort_by_key(|object| std::cmp::Reverse((object.x, object.index)));
+        // The CGB ranks sprites by OAM index alone; the DMG ranks by X first.
+        if self.cgb {
+            visible.sort_by_key(|object| std::cmp::Reverse(object.index));
+        } else {
+            visible.sort_by_key(|object| std::cmp::Reverse((object.x, object.index)));
+        }
 
         for object in visible {
             for offset in 0..TILE_SIZE {
@@ -351,16 +427,20 @@ impl Ppu {
                 if color == 0 {
                     continue;
                 }
-                if object.attributes & OBJ_BEHIND_BACKGROUND != 0 && background[screen_x] != 0 {
+                if self.background_wins(&object, background[screen_x]) {
                     continue;
                 }
 
-                let palette = if object.attributes & OBJ_PALETTE_1 == 0 {
-                    self.obp0
+                self.framebuffer[line + screen_x] = if self.cgb {
+                    color_555(&self.ob_palette, object.attributes & OBJ_CGB_PALETTE, color)
                 } else {
-                    self.obp1
+                    let palette = if object.attributes & OBJ_PALETTE_1 == 0 {
+                        self.obp0
+                    } else {
+                        self.obp1
+                    };
+                    shade(palette, color) as u16
                 };
-                self.framebuffer[line + screen_x] = shade(palette, color);
             }
         }
     }
@@ -391,6 +471,20 @@ impl Ppu {
         found
     }
 
+    fn background_wins(&self, object: &Object, background: BgPixel) -> bool {
+        if background.color == 0 {
+            return false;
+        }
+        if self.cgb {
+            // LCDC bit 0 is the master switch: cleared, sprites always win.
+            self.lcdc & LCDC_BG_ENABLED != 0
+                && (background.attributes & BG_PRIORITY != 0
+                    || object.attributes & OBJ_BEHIND_BACKGROUND != 0)
+        } else {
+            object.attributes & OBJ_BEHIND_BACKGROUND != 0
+        }
+    }
+
     fn object_color(&self, object: &Object, offset: u8, height: u8) -> u8 {
         let mut row = (self.ly as i16 - object.top) as u8;
         if object.attributes & OBJ_FLIP_Y != 0 {
@@ -403,7 +497,12 @@ impl Ppu {
             object.tile
         };
 
-        let base = (tile as u16 * TILE_BYTES + row as u16 * 2) as usize;
+        let bank = if self.cgb && object.attributes & OBJ_BANK != 0 {
+            VRAM_BANK_BYTES
+        } else {
+            0
+        };
+        let base = (tile as u16 * TILE_BYTES + row as u16 * 2) as usize + bank;
         let low = self.vram[base];
         let high = self.vram[base + 1];
         let bit = if object.attributes & OBJ_FLIP_X != 0 {
@@ -415,18 +514,45 @@ impl Ppu {
         (high >> bit & 1) << 1 | (low >> bit & 1)
     }
 
-    fn tile_color(&self, map: u16, x: u8, y: u8) -> u8 {
-        let entry = (y / TILE_SIZE) as u16 * TILES_PER_MAP_ROW + (x / TILE_SIZE) as u16;
-        let tile = self.vram[(map + entry) as usize];
-        let base = tile_address(self.lcdc, tile);
+    fn tile_pixel(&self, map: u16, x: u8, y: u8) -> BgPixel {
+        let entry =
+            ((y / TILE_SIZE) as u16 * TILES_PER_MAP_ROW + (x / TILE_SIZE) as u16 + map) as usize;
+        let tile = self.vram[entry];
+        // The attribute plane shadows the tile map from VRAM bank 1.
+        let attributes = if self.cgb {
+            self.vram[entry + VRAM_BANK_BYTES]
+        } else {
+            0
+        };
 
-        let row = (y % TILE_SIZE) as u16 * 2;
-        let low = self.vram[(base + row) as usize];
-        let high = self.vram[(base + row + 1) as usize];
-        let bit = 7 - (x % TILE_SIZE);
+        let mut row = y % TILE_SIZE;
+        if attributes & BG_FLIP_Y != 0 {
+            row = TILE_SIZE - 1 - row;
+        }
+        let mut bit = 7 - (x % TILE_SIZE);
+        if attributes & BG_FLIP_X != 0 {
+            bit = 7 - bit;
+        }
 
-        (high >> bit & 1) << 1 | (low >> bit & 1)
+        let bank = if attributes & BG_BANK != 0 {
+            VRAM_BANK_BYTES
+        } else {
+            0
+        };
+        let base = tile_address(self.lcdc, tile) as usize + row as usize * 2 + bank;
+        let low = self.vram[base];
+        let high = self.vram[base + 1];
+
+        BgPixel {
+            color: (high >> bit & 1) << 1 | (low >> bit & 1),
+            attributes,
+        }
     }
+}
+
+fn color_555(palette_ram: &[u8; PALETTE_RAM_BYTES], palette: u8, color: u8) -> u16 {
+    let index = palette as usize * 8 + color as usize * 2;
+    ((palette_ram[index + 1] as u16) << 8 | palette_ram[index] as u16) & 0x7FFF
 }
 
 fn tile_address(lcdc: u8, tile: u8) -> u16 {

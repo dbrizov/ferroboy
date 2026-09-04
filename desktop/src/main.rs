@@ -116,9 +116,17 @@ impl App {
     }
 
     fn draw(&mut self) {
-        if let Some(pixels) = &mut self.pixels {
-            let framebuffer = self.emulator.framebuffer();
-            let surface = pixels.frame_mut().as_chunks_mut::<4>().0;
+        let Some(pixels) = &mut self.pixels else {
+            return;
+        };
+
+        let framebuffer = self.emulator.framebuffer();
+        let surface = pixels.frame_mut().as_chunks_mut::<4>().0;
+        if self.emulator.is_cgb() {
+            for (pixel, &color) in surface.iter_mut().zip(framebuffer) {
+                *pixel = rgba_from_555(color);
+            }
+        } else {
             for (pixel, &shade) in surface.iter_mut().zip(framebuffer) {
                 *pixel = PALETTE[shade as usize];
             }
@@ -174,7 +182,7 @@ impl ApplicationHandler for App {
                     }
                 }
             }
-            _ => return,
+            _ => {}
         }
     }
 
@@ -201,6 +209,16 @@ impl ApplicationHandler for App {
 
         event_loop.set_control_flow(ControlFlow::WaitUntil(self.next_frame));
     }
+}
+
+fn rgba_from_555(color: u16) -> [u8; 4] {
+    let expand = |channel: u16| (channel << 3 | channel >> 2) as u8;
+    [
+        expand(color & 0x1F),
+        expand(color >> 5 & 0x1F),
+        expand(color >> 10 & 0x1F),
+        0xFF,
+    ]
 }
 
 fn center(window: &Window) {

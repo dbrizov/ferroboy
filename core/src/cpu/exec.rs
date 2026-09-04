@@ -76,7 +76,10 @@ impl Cpu {
                 4
             }
             STOP_0 => {
-                self.fetch8(bus); // STOP is two bytes; the second is ignored
+                bus.switch_speed();
+                // STOP is two bytes, but the stopped CPU never reads the
+                // second - it is skipped, not fetched, so no cycle is spent.
+                self.pc = self.pc.wrapping_add(1);
                 4
             }
             LD_DE_D16 => {

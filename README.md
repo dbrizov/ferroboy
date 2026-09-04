@@ -36,6 +36,7 @@ cargo fmt && cargo clippy --all-targets
 ## Test ROMs
 - [Blargg's test ROMs](https://github.com/retrio/gb-test-roms)
 - [dmg-acid2](https://github.com/mattcurrie/dmg-acid2)
+- [cgb-acid2](https://github.com/mattcurrie/cgb-acid2)
 
 ## Other emulators
 - [SameBoy](https://github.com/LIJI32/SameBoy)

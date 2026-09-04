@@ -12,7 +12,7 @@ fn run(ppu: &mut Ppu, dots: u32) -> u8 {
 
 #[test]
 fn a_visible_line_is_oam_scan_then_drawing_then_hblank() {
-    let mut ppu = Ppu::new();
+    let mut ppu = Ppu::new(false);
     assert_eq!(ppu.mode, Mode::OamScan);
 
     run(&mut ppu, 79);
@@ -34,7 +34,7 @@ fn a_visible_line_is_oam_scan_then_drawing_then_hblank() {
 
 #[test]
 fn a_frame_is_70224_dots() {
-    let mut ppu = Ppu::new();
+    let mut ppu = Ppu::new(false);
     run(&mut ppu, 70_224);
 
     assert!(ppu.take_frame_ready());
@@ -45,7 +45,7 @@ fn a_frame_is_70224_dots() {
 
 #[test]
 fn vblank_starts_at_line_144_and_lasts_ten_lines() {
-    let mut ppu = Ppu::new();
+    let mut ppu = Ppu::new(false);
     let raised = run(&mut ppu, 144 * SCANLINE_DOTS);
 
     assert_eq!(ppu.ly, 144);
@@ -60,7 +60,7 @@ fn vblank_starts_at_line_144_and_lasts_ten_lines() {
 
 #[test]
 fn the_lcd_being_off_freezes_the_state_machine_but_not_the_clock() {
-    let mut ppu = Ppu::new();
+    let mut ppu = Ppu::new(false);
     run(&mut ppu, 1000);
     assert_ne!(ppu.ly, 0);
 
@@ -79,7 +79,7 @@ fn the_lcd_being_off_freezes_the_state_machine_but_not_the_clock() {
 
 #[test]
 fn coincidence_is_reported_whether_or_not_it_interrupts() {
-    let mut ppu = Ppu::new();
+    let mut ppu = Ppu::new(false);
     ppu.write_reg(addr::LYC, 2);
 
     let raised = run(&mut ppu, 2 * SCANLINE_DOTS);
@@ -88,7 +88,7 @@ fn coincidence_is_reported_whether_or_not_it_interrupts() {
     assert_eq!(raised & interrupts::STAT, 0, "source not enabled");
 
     // Now enable it and come round again.
-    let mut ppu = Ppu::new();
+    let mut ppu = Ppu::new(false);
     ppu.write_reg(addr::LYC, 2);
     ppu.write_reg(addr::STAT, stat::LYC_EQUALS_LY);
 
@@ -98,7 +98,7 @@ fn coincidence_is_reported_whether_or_not_it_interrupts() {
 
 #[test]
 fn stat_reports_the_mode_and_refuses_to_have_it_written() {
-    let mut ppu = Ppu::new();
+    let mut ppu = Ppu::new(false);
     assert_eq!(ppu.read_reg(addr::STAT) & 0x03, Mode::OamScan as u8);
 
     ppu.write_reg(addr::STAT, 0xFF);
@@ -112,7 +112,7 @@ fn stat_reports_the_mode_and_refuses_to_have_it_written() {
 
 #[test]
 fn ly_is_read_only() {
-    let mut ppu = Ppu::new();
+    let mut ppu = Ppu::new(false);
     run(&mut ppu, 3 * SCANLINE_DOTS);
     ppu.write_reg(addr::LY, 100);
 
@@ -149,7 +149,7 @@ fn put_object(ppu: &mut Ppu, index: u8, y: u8, x: u8, tile: u8, attributes: u8) 
     ppu.write_oam(entry + 3, attributes);
 }
 
-fn rendered_line(ppu: &mut Ppu, line: u8) -> Vec<u8> {
+fn rendered_line(ppu: &mut Ppu, line: u8) -> Vec<u16> {
     ppu.ly = line;
     ppu.render_scanline();
     let start = line as usize * SCREEN_WIDTH;
@@ -158,7 +158,7 @@ fn rendered_line(ppu: &mut Ppu, line: u8) -> Vec<u8> {
 
 #[test]
 fn a_tile_maps_its_two_bitplanes_onto_four_colors() {
-    let mut ppu = Ppu::new();
+    let mut ppu = Ppu::new(false);
     identity_palette(&mut ppu);
     ppu.write_reg(addr::LCDC, ON);
     write_striped_tile(&mut ppu, 0);
@@ -168,7 +168,7 @@ fn a_tile_maps_its_two_bitplanes_onto_four_colors() {
 
 #[test]
 fn the_palette_is_an_indirection_not_a_shade() {
-    let mut ppu = Ppu::new();
+    let mut ppu = Ppu::new(false);
     ppu.write_reg(addr::LCDC, ON);
     write_striped_tile(&mut ppu, 0);
 
@@ -178,7 +178,7 @@ fn the_palette_is_an_indirection_not_a_shade() {
 
 #[test]
 fn scx_scrolls_the_viewport() {
-    let mut ppu = Ppu::new();
+    let mut ppu = Ppu::new(false);
     identity_palette(&mut ppu);
     ppu.write_reg(addr::LCDC, ON);
     write_striped_tile(&mut ppu, 0);
@@ -189,7 +189,7 @@ fn scx_scrolls_the_viewport() {
 
 #[test]
 fn scy_selects_which_row_of_the_map_a_scanline_reads() {
-    let mut ppu = Ppu::new();
+    let mut ppu = Ppu::new(false);
     identity_palette(&mut ppu);
     ppu.write_reg(addr::LCDC, ON);
     write_striped_tile(&mut ppu, 1);
@@ -214,7 +214,7 @@ fn the_signed_addressing_mode_reaches_the_other_block() {
 
 #[test]
 fn the_high_map_is_a_different_1024_bytes() {
-    let mut ppu = Ppu::new();
+    let mut ppu = Ppu::new(false);
     identity_palette(&mut ppu);
     write_striped_tile(&mut ppu, 5);
     ppu.write_vram(HIGH_MAP, 5);
@@ -228,7 +228,7 @@ fn the_high_map_is_a_different_1024_bytes() {
 
 #[test]
 fn clearing_lcdc_bit_0_blanks_the_background() {
-    let mut ppu = Ppu::new();
+    let mut ppu = Ppu::new(false);
     identity_palette(&mut ppu);
     ppu.write_reg(addr::LCDC, ON);
     write_striped_tile(&mut ppu, 0);
@@ -240,7 +240,7 @@ fn clearing_lcdc_bit_0_blanks_the_background() {
 
 #[test]
 fn a_whole_frame_of_scanlines_lands_in_the_right_rows() {
-    let mut ppu = Ppu::new();
+    let mut ppu = Ppu::new(false);
     identity_palette(&mut ppu);
     ppu.write_reg(addr::LCDC, ON);
     write_striped_tile(&mut ppu, 0);
@@ -255,7 +255,7 @@ fn a_whole_frame_of_scanlines_lands_in_the_right_rows() {
 
 #[test]
 fn the_window_covers_the_background_from_wx_onward() {
-    let mut ppu = Ppu::new();
+    let mut ppu = Ppu::new(false);
     identity_palette(&mut ppu);
     ppu.write_reg(addr::LCDC, ON | LCDC_WINDOW_ENABLED | LCDC_WINDOW_MAP_HIGH);
 
@@ -273,7 +273,7 @@ fn the_window_covers_the_background_from_wx_onward() {
 
 #[test]
 fn the_window_does_not_start_before_wy() {
-    let mut ppu = Ppu::new();
+    let mut ppu = Ppu::new(false);
     identity_palette(&mut ppu);
     ppu.write_reg(addr::LCDC, ON | LCDC_WINDOW_ENABLED);
     write_solid_tile(&mut ppu, 7);
@@ -290,7 +290,7 @@ fn the_window_does_not_start_before_wy() {
 
 #[test]
 fn a_sprite_is_drawn_at_its_biased_coordinates() {
-    let mut ppu = Ppu::new();
+    let mut ppu = Ppu::new(false);
     identity_palette(&mut ppu);
     ppu.write_reg(addr::LCDC, ON | LCDC_OBJ_ENABLED);
     write_solid_tile(&mut ppu, 2);
@@ -303,7 +303,7 @@ fn a_sprite_is_drawn_at_its_biased_coordinates() {
 
 #[test]
 fn color_zero_is_transparent() {
-    let mut ppu = Ppu::new();
+    let mut ppu = Ppu::new(false);
     identity_palette(&mut ppu);
     ppu.write_reg(addr::LCDC, ON | LCDC_OBJ_ENABLED);
     write_striped_tile(&mut ppu, 3);
@@ -315,7 +315,7 @@ fn color_zero_is_transparent() {
 
 #[test]
 fn the_priority_bit_puts_a_sprite_behind_non_zero_background() {
-    let mut ppu = Ppu::new();
+    let mut ppu = Ppu::new(false);
     identity_palette(&mut ppu);
     ppu.write_reg(addr::LCDC, ON | LCDC_OBJ_ENABLED);
     write_solid_tile(&mut ppu, 4);
@@ -330,7 +330,7 @@ fn the_priority_bit_puts_a_sprite_behind_non_zero_background() {
 
 #[test]
 fn flipping_reverses_the_tile() {
-    let mut ppu = Ppu::new();
+    let mut ppu = Ppu::new(false);
     identity_palette(&mut ppu);
     ppu.write_reg(addr::LCDC, ON | LCDC_OBJ_ENABLED);
     write_striped_tile(&mut ppu, 3);
@@ -344,7 +344,7 @@ fn flipping_reverses_the_tile() {
 
 #[test]
 fn the_lower_x_wins_and_ties_go_to_oam_order() {
-    let mut ppu = Ppu::new();
+    let mut ppu = Ppu::new(false);
     identity_palette(&mut ppu);
     ppu.write_reg(addr::LCDC, ON | LCDC_OBJ_ENABLED);
     write_solid_tile(&mut ppu, 1);
@@ -365,7 +365,7 @@ fn the_lower_x_wins_and_ties_go_to_oam_order() {
 
 #[test]
 fn only_ten_sprites_are_drawn_on_a_line() {
-    let mut ppu = Ppu::new();
+    let mut ppu = Ppu::new(false);
     identity_palette(&mut ppu);
     ppu.write_reg(addr::LCDC, ON | LCDC_OBJ_ENABLED);
     write_solid_tile(&mut ppu, 1);
@@ -381,7 +381,7 @@ fn only_ten_sprites_are_drawn_on_a_line() {
 
 #[test]
 fn a_tall_sprite_is_two_stacked_tiles_and_ignores_bit_0() {
-    let mut ppu = Ppu::new();
+    let mut ppu = Ppu::new(false);
     identity_palette(&mut ppu);
     ppu.write_reg(addr::LCDC, ON | LCDC_OBJ_ENABLED | LCDC_OBJ_TALL);
     write_solid_tile(&mut ppu, 4);
@@ -399,4 +399,65 @@ fn a_tall_sprite_is_two_stacked_tiles_and_ignores_bit_0() {
         [0, 1, 2, 3],
         "tile 5 below"
     );
+}
+
+#[test]
+fn cgb_tiles_use_their_attribute_palette() {
+    let mut ppu = Ppu::new(true);
+    ppu.write_reg(addr::LCDC, ON);
+    write_solid_tile(&mut ppu, 1);
+    ppu.write_vram(LOW_MAP, 1);
+
+    ppu.write_reg(addr::VBK, 1);
+    ppu.write_vram(LOW_MAP, 0x01);
+    ppu.write_reg(addr::VBK, 0);
+
+    ppu.write_reg(addr::BCPS, 0x80 | 14);
+    ppu.write_reg(addr::BCPD, 0x34);
+    ppu.write_reg(addr::BCPD, 0x12);
+
+    assert_eq!(rendered_line(&mut ppu, 0)[0], 0x1234);
+}
+
+#[test]
+fn cgb_tiles_can_flip_and_fetch_from_bank_one() {
+    let mut ppu = Ppu::new(true);
+    ppu.write_reg(addr::LCDC, ON);
+
+    ppu.write_reg(addr::VBK, 1);
+    for row in 0..8u16 {
+        ppu.write_vram(TILE_BYTES + row * 2, 0x80);
+        ppu.write_vram(TILE_BYTES + row * 2 + 1, 0x80);
+    }
+    ppu.write_vram(LOW_MAP, BG_FLIP_X | BG_BANK);
+    ppu.write_reg(addr::VBK, 0);
+    ppu.write_vram(LOW_MAP, 1);
+
+    ppu.write_reg(addr::BCPS, 0x80 | 6);
+    ppu.write_reg(addr::BCPD, 0xCD);
+    ppu.write_reg(addr::BCPD, 0x2A);
+
+    let line = rendered_line(&mut ppu, 0);
+    assert_eq!(line[7], 0x2ACD, "the leftmost pixel should flip to x=7");
+    assert_ne!(line[0], 0x2ACD);
+}
+
+#[test]
+fn cgb_sprites_rank_by_oam_index_not_x() {
+    let mut ppu = Ppu::new(true);
+    ppu.write_reg(addr::LCDC, ON | LCDC_OBJ_ENABLED);
+    write_solid_tile(&mut ppu, 1);
+    put_object(&mut ppu, 0, 16, 12, 1, 0x00);
+    put_object(&mut ppu, 1, 16, 8, 1, 0x01);
+
+    ppu.write_reg(addr::OCPS, 0x80 | 6);
+    ppu.write_reg(addr::OCPD, 0x11);
+    ppu.write_reg(addr::OCPD, 0x11);
+    ppu.write_reg(addr::OCPS, 0x80 | 14);
+    ppu.write_reg(addr::OCPD, 0x22);
+    ppu.write_reg(addr::OCPD, 0x22);
+
+    let line = rendered_line(&mut ppu, 0);
+    assert_eq!(line[4], 0x1111, "index 0 wins the overlap despite higher x");
+    assert_eq!(line[0], 0x2222);
 }

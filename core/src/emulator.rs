@@ -1,4 +1,4 @@
-use crate::boot_rom::BOOT_ROM;
+use crate::boot_rom::{BOOT_ROM, CGB_BOOT_ROM};
 use crate::bus::Bus;
 use crate::cartridge::{self, Cartridge};
 use crate::cpu::Cpu;
@@ -12,18 +12,23 @@ pub struct Emulator {
 
 impl Emulator {
     pub fn new(rom: &[u8]) -> Self {
-        Self::from_cartridge(cartridge::load(rom), &BOOT_ROM)
+        Self::from_cartridge(cartridge::load(rom), cartridge::is_cgb(rom))
     }
 
     pub fn unplugged() -> Self {
-        Self::from_cartridge(cartridge::unplugged(), &BOOT_ROM)
+        Self::from_cartridge(cartridge::unplugged(), false)
     }
 
-    fn from_cartridge(cartridge: Box<dyn Cartridge>, boot_rom: &[u8]) -> Self {
+    fn from_cartridge(cartridge: Box<dyn Cartridge>, cgb: bool) -> Self {
+        let boot_rom: &[u8] = if cgb { &CGB_BOOT_ROM } else { &BOOT_ROM };
         Self {
             cpu: Cpu::new(),
-            bus: Bus::new(cartridge, boot_rom),
+            bus: Bus::new(cartridge, boot_rom, cgb),
         }
+    }
+
+    pub fn is_cgb(&self) -> bool {
+        self.bus.is_cgb()
     }
 
     pub fn set_button(&mut self, button: Button, pressed: bool) {
@@ -67,7 +72,7 @@ impl Emulator {
         self.bus.serial.take_byte()
     }
 
-    pub fn framebuffer(&self) -> &[u8; SCREEN_WIDTH * SCREEN_HEIGHT] {
+    pub fn framebuffer(&self) -> &[u16; SCREEN_WIDTH * SCREEN_HEIGHT] {
         self.bus.ppu.framebuffer()
     }
 }

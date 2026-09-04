@@ -9,7 +9,7 @@ const CHANNEL_1: u8 = 1 << 0;
 const CHANNEL_3: u8 = 1 << 2;
 
 fn powered_on() -> Apu {
-    let mut apu = Apu::new();
+    let mut apu = Apu::new(false);
     apu.write(addr::NR52, NR52_ENABLED);
     apu
 }
@@ -32,7 +32,7 @@ fn start_square1(apu: &mut Apu, length: u8, control: u8) {
 
 #[test]
 fn a_powered_off_apu_ignores_writes() {
-    let mut apu = Apu::new();
+    let mut apu = Apu::new(false);
     apu.write(addr::NR50, 0x77);
     apu.write(addr::NR51, 0xF3);
 
@@ -51,7 +51,7 @@ fn powering_off_clears_the_registers() {
 
 #[test]
 fn wave_ram_stays_writable_with_the_apu_off() {
-    let mut apu = Apu::new();
+    let mut apu = Apu::new(false);
     apu.write(addr::WAVE_START, 0xAB);
 
     assert_eq!(apu.read(addr::WAVE_START), 0xAB);
@@ -68,7 +68,7 @@ fn powering_off_leaves_wave_ram_alone() {
 
 #[test]
 fn nr52_reads_with_the_unused_bits_set() {
-    assert_eq!(Apu::new().read(addr::NR52), 0x70);
+    assert_eq!(Apu::new(false).read(addr::NR52), 0x70);
 }
 
 #[test]
@@ -127,7 +127,7 @@ fn enabling_length_on_a_length_step_does_not() {
 // counter that is already there - two separate halves of the same DMG quirk.
 #[test]
 fn a_length_counter_can_be_loaded_while_the_apu_is_off() {
-    let mut apu = Apu::new();
+    let mut apu = Apu::new(false);
     apu.write(NR11, 0x3F);
     apu.write(addr::NR52, NR52_ENABLED);
     start_square1(&mut apu, 0x3F, 0xC0);
@@ -189,4 +189,19 @@ fn the_frame_sequencer_restarts_when_the_apu_powers_on() {
     apu.write(addr::NR14, 0x40);
 
     assert!(active(&apu, CHANNEL_1));
+}
+
+#[test]
+fn cgb_exposes_wave_ram_while_the_channel_runs() {
+    let mut apu = Apu::new(true);
+    apu.write(addr::NR52, NR52_ENABLED);
+    apu.write(addr::WAVE_START, 0xAB);
+    apu.write(NR30, 0x80);
+    apu.write(NR34, 0x80);
+    assert!(active(&apu, CHANNEL_3));
+
+    assert_eq!(apu.read(addr::WAVE_START), 0xAB);
+    apu.write(addr::WAVE_START, 0xCD);
+    apu.write(NR30, 0x00);
+    assert_eq!(apu.read(addr::WAVE_START), 0xCD);
 }

@@ -57,12 +57,12 @@ pub struct Apu {
 }
 
 impl Apu {
-    pub fn new() -> Self {
+    pub fn new(cgb: bool) -> Self {
         Self {
             enabled: false,
             square1: Square::new(true),
             square2: Square::new(false),
-            wave: Wave::new(),
+            wave: Wave::new(cgb),
             noise: Noise::new(),
             volumes: 0,
             panning: 0,

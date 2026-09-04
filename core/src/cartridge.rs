@@ -48,6 +48,10 @@ pub fn load(rom: &[u8]) -> Box<dyn Cartridge> {
     }
 }
 
+pub fn is_cgb(rom: &[u8]) -> bool {
+    rom.len() > addr::CGB_FLAG && rom[addr::CGB_FLAG] & 0x80 != 0
+}
+
 pub fn unplugged() -> Box<dyn Cartridge> {
     Box::new(Unplugged)
 }
