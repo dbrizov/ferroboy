@@ -3,14 +3,20 @@ use std::sync::{Arc, Mutex};
 
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use ferroboy::SAMPLE_RATE;
-use wasm_bindgen::JsValue;
 
-// eprintln goes nowhere in a browser; errors must reach the console.
+// Drop samples once more than a quarter second is buffered, so latency cannot
+// grow without bound when the emulator outruns the audio device.
+const MAX_QUEUED: usize = SAMPLE_RATE as usize / 4;
+
+#[cfg(target_arch = "wasm32")]
 fn report(message: String) {
-    web_sys::console::error_1(&JsValue::from_str(&message));
+    web_sys::console::error_1(&wasm_bindgen::JsValue::from_str(&message));
 }
 
-const MAX_QUEUED: usize = SAMPLE_RATE as usize / 4;
+#[cfg(not(target_arch = "wasm32"))]
+fn report(message: String) {
+    eprintln!("{message}");
+}
 
 pub struct Audio {
     queue: Arc<Mutex<VecDeque<f32>>>,

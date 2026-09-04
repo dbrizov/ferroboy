@@ -478,11 +478,21 @@ name = "ferroboy"
 version = "0.1.0"
 
 [[package]]
-name = "ferroboy_desktop"
+name = "ferroboy_common"
 version = "0.1.0"
 dependencies = [
  "cpal",
  "ferroboy",
+ "wasm-bindgen",
+ "web-sys",
+]
+
+[[package]]
+name = "ferroboy_desktop"
+version = "0.1.0"
+dependencies = [
+ "ferroboy",
+ "ferroboy_common",
  "gilrs",
  "pixels",
  "winit",
@@ -493,8 +503,8 @@ name = "ferroboy_web"
 version = "0.1.0"
 dependencies = [
  "console_error_panic_hook",
- "cpal",
  "ferroboy",
+ "ferroboy_common",
  "js-sys",
  "pixels",
  "wasm-bindgen",

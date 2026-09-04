@@ -9,8 +9,8 @@ repository.workspace = true
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 console_error_panic_hook = "0.1.7"
-cpal = { version = "0.18.2", features = ["wasm-bindgen"] }
 ferroboy = { path = "../core" }
+ferroboy_common = { path = "../common" }
 js-sys = "0.3"
 pixels = "0.17.2"
 wasm-bindgen = "0.2"

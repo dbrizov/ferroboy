@@ -1,11 +1,9 @@
-mod audio;
-
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
-use crate::audio::Audio;
-use ferroboy::{Button, Emulator, SCREEN_HEIGHT, SCREEN_WIDTH};
+use ferroboy::{Button, Emulator};
+use ferroboy_common::{Audio, FRAME_DURATION, GB_HEIGHT, GB_WIDTH, WINDOW_SCALE, to_rgba};
 use gilrs::{EventType, Gilrs};
 use pixels::{Pixels, SurfaceTexture};
 use winit::application::ApplicationHandler;
@@ -14,19 +12,6 @@ use winit::event::{ElementState, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
 use winit::keyboard::{KeyCode, PhysicalKey};
 use winit::window::{Window, WindowId};
-
-const GB_WIDTH: u32 = SCREEN_WIDTH as u32;
-const GB_HEIGHT: u32 = SCREEN_HEIGHT as u32;
-const WINDOW_SCALE: u32 = 4;
-const FRAME_DURATION: Duration = Duration::from_nanos(16_742_706);
-
-/// The DMG's four shades, lightest to darkest, as RGBA.
-const PALETTE: [[u8; 4]; 4] = [
-    [0x9B, 0xBC, 0x0F, 0xFF],
-    [0x8B, 0xAC, 0x0F, 0xFF],
-    [0x30, 0x62, 0x30, 0xFF],
-    [0x0F, 0x38, 0x0F, 0xFF],
-];
 
 const KEYBOARD: [(KeyCode, Button); 8] = [
     (KeyCode::ArrowRight, Button::Right),
@@ -120,17 +105,8 @@ impl App {
             return;
         };
 
-        let framebuffer = self.emulator.framebuffer();
         let surface = pixels.frame_mut().as_chunks_mut::<4>().0;
-        if self.emulator.is_cgb() {
-            for (pixel, &color) in surface.iter_mut().zip(framebuffer) {
-                *pixel = rgba_from_555(color);
-            }
-        } else {
-            for (pixel, &shade) in surface.iter_mut().zip(framebuffer) {
-                *pixel = PALETTE[shade as usize];
-            }
-        }
+        to_rgba(&self.emulator, surface);
     }
 }
 
@@ -209,16 +185,6 @@ impl ApplicationHandler for App {
 
         event_loop.set_control_flow(ControlFlow::WaitUntil(self.next_frame));
     }
-}
-
-fn rgba_from_555(color: u16) -> [u8; 4] {
-    let expand = |channel: u16| (channel << 3 | channel >> 2) as u8;
-    [
-        expand(color & 0x1F),
-        expand(color >> 5 & 0x1F),
-        expand(color >> 10 & 0x1F),
-        0xFF,
-    ]
 }
 
 fn center(window: &Window) {

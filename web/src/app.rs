@@ -3,7 +3,10 @@ use std::rc::Rc;
 use std::sync::Arc;
 use std::time::Duration;
 
-use ferroboy::{Button, Emulator, SCREEN_HEIGHT, SCREEN_WIDTH};
+use ferroboy::{Button, Emulator};
+use ferroboy_common::{
+    Audio, FRAME_DURATION, GB_HEIGHT, GB_WIDTH, WINDOW_SCALE, looks_like_a_rom, to_rgba,
+};
 use pixels::wgpu::TextureFormat;
 use pixels::{Pixels, PixelsBuilder, SurfaceTexture};
 use wasm_bindgen::JsCast;
@@ -16,21 +19,7 @@ use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
 use winit::platform::web::{EventLoopExtWebSys, WindowExtWebSys};
 use winit::window::{Window, WindowId};
 
-use crate::audio::Audio;
-
-const GB_WIDTH: u32 = SCREEN_WIDTH as u32;
-const GB_HEIGHT: u32 = SCREEN_HEIGHT as u32;
-const WINDOW_SCALE: u32 = 4;
-const FRAME_DURATION: Duration = Duration::from_nanos(16_742_706);
 const SAVE_INTERVAL: Duration = Duration::from_secs(2);
-
-/// The DMG's four shades, lightest to darkest, as RGBA.
-const PALETTE: [[u8; 4]; 4] = [
-    [0x9B, 0xBC, 0x0F, 0xFF],
-    [0x8B, 0xAC, 0x0F, 0xFF],
-    [0x30, 0x62, 0x30, 0xFF],
-    [0x0F, 0x38, 0x0F, 0xFF],
-];
 
 fn button_for(code: &str) -> Option<Button> {
     match code {
@@ -126,17 +115,8 @@ impl App {
             return;
         };
 
-        let framebuffer = self.emulator.framebuffer();
         let surface = pixels.frame_mut().as_chunks_mut::<4>().0;
-        if self.emulator.is_cgb() {
-            for (pixel, &color) in surface.iter_mut().zip(framebuffer) {
-                *pixel = rgba_from_555(color);
-            }
-        } else {
-            for (pixel, &shade) in surface.iter_mut().zip(framebuffer) {
-                *pixel = PALETTE[shade as usize];
-            }
-        }
+        to_rgba(&self.emulator, surface);
     }
 }
 
@@ -306,18 +286,6 @@ pub fn run() {
     event_loop.spawn_app(App::new(audio));
 }
 
-fn looks_like_a_rom(rom: &[u8]) -> bool {
-    if rom.len() < 0x0150 {
-        return false;
-    }
-
-    let mut checksum = 0u8;
-    for byte in &rom[0x0134..0x014D] {
-        checksum = checksum.wrapping_sub(*byte).wrapping_sub(1);
-    }
-    checksum == rom[0x014D]
-}
-
 fn local_storage() -> Option<web_sys::Storage> {
     web_sys::window()?.local_storage().ok()?
 }
@@ -350,14 +318,4 @@ fn from_hex(text: &str) -> Option<Vec<u8>> {
         .step_by(2)
         .map(|index| u8::from_str_radix(&text[index..index + 2], 16).ok())
         .collect()
-}
-
-fn rgba_from_555(color: u16) -> [u8; 4] {
-    let expand = |channel: u16| (channel << 3 | channel >> 2) as u8;
-    [
-        expand(color & 0x1F),
-        expand(color >> 5 & 0x1F),
-        expand(color >> 10 & 0x1F),
-        0xFF,
-    ]
 }
