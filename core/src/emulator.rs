@@ -30,6 +30,14 @@ impl Emulator {
         self.bus.set_button(button, pressed);
     }
 
+    pub fn battery_ram(&self) -> Option<&[u8]> {
+        self.bus.battery_ram()
+    }
+
+    pub fn load_battery_ram(&mut self, saved: &[u8]) {
+        self.bus.load_battery_ram(saved);
+    }
+
     pub fn read(&self, address: u16) -> u8 {
         self.bus.read(address)
     }

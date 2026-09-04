@@ -84,6 +84,14 @@ impl Bus {
         self.intf |= self.joypad.set(button, pressed);
     }
 
+    pub fn battery_ram(&self) -> Option<&[u8]> {
+        self.cartridge.battery_ram()
+    }
+
+    pub fn load_battery_ram(&mut self, saved: &[u8]) {
+        self.cartridge.load_battery_ram(saved);
+    }
+
     pub fn read(&self, address: u16) -> u8 {
         match address {
             ROM_START..=ROM_END

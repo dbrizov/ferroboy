@@ -7,11 +7,18 @@ const CART_TYPE_NONE: u8 = 0x00;
 const CART_TYPE_MBC1: u8 = 0x01;
 
 const ROM_SIZE_32_KIB: u8 = 0x00;
-const ROM_SIZE_64_KIB: u8 = 0x01;
 const ROM_SIZE_1_MIB: u8 = 0x05;
 
 const RAM_SIZE_NONE: u8 = 0x00;
 const RAM_SIZE_64_KIB: u8 = 0x05;
+
+pub fn rom_of_banks(banks: usize) -> Vec<u8> {
+    let mut rom = vec![0u8; banks * ROM_BANK_BYTES];
+    for (bank, chunk) in rom.chunks_mut(ROM_BANK_BYTES).enumerate() {
+        chunk.fill(bank as u8);
+    }
+    rom
+}
 
 fn rom_with(cart_type: u8, rom_size: u8, ram_size: u8) -> Vec<u8> {
     let mut rom = vec![HALT; 0x8000];
@@ -28,14 +35,14 @@ fn parses_a_32_kib_cartridge_with_no_ram() {
     let header = Header::parse(&rom_with(CART_TYPE_NONE, ROM_SIZE_32_KIB, RAM_SIZE_NONE));
     assert_eq!(header._title, "");
     assert_eq!(header.cart_type, CART_TYPE_NONE);
-    assert_eq!(header.rom_size, 0x8000);
+    assert_eq!(header._rom_size, 0x8000);
     assert_eq!(header.ram_size, 0);
 }
 
 #[test]
 fn the_size_codes_are_not_the_sizes() {
     let header = Header::parse(&rom_with(CART_TYPE_MBC1, ROM_SIZE_1_MIB, RAM_SIZE_64_KIB));
-    assert_eq!(header.rom_size, 1024 * 1024);
+    assert_eq!(header._rom_size, 1024 * 1024);
     assert_eq!(header.ram_size, 64 * 1024);
 }
 
@@ -68,10 +75,9 @@ fn load_takes_a_32_kib_mbc1_cartridge() {
 }
 
 #[test]
-#[should_panic(expected = "unsupported cartridge type 0x01")]
-fn load_refuses_an_mbc1_cartridge_that_needs_banking() {
-    let mut rom = rom_with(CART_TYPE_MBC1, ROM_SIZE_64_KIB, RAM_SIZE_NONE);
-    rom.resize(0x10000, HALT);
+#[should_panic(expected = "unsupported cartridge type 0x20")]
+fn load_refuses_a_mapper_it_does_not_have() {
+    let rom = rom_with(0x20, ROM_SIZE_32_KIB, RAM_SIZE_NONE);
 
     load(&rom);
 }

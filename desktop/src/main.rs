@@ -1,3 +1,4 @@
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -47,6 +48,7 @@ const CONTROLLER: [(gilrs::Button, Button); 8] = [
 ];
 
 struct App {
+    save: Option<PathBuf>,
     controllers: Option<Gilrs>,
     window: Option<Arc<Window>>,
     pixels: Option<Pixels<'static>>,
@@ -55,13 +57,24 @@ struct App {
 }
 
 impl App {
-    fn new(emulator: Emulator) -> Self {
+    fn new(emulator: Emulator, save: Option<PathBuf>) -> Self {
         Self {
+            save,
             controllers: Gilrs::new().ok(),
             window: None,
             pixels: None,
             emulator,
             next_frame: Instant::now(),
+        }
+    }
+
+    fn write_save(&self) {
+        let (Some(path), Some(ram)) = (&self.save, self.emulator.battery_ram()) else {
+            return;
+        };
+
+        if let Err(error) = std::fs::write(path, ram) {
+            eprintln!("could not write {}: {error}", path.display());
         }
     }
 
@@ -118,7 +131,10 @@ impl ApplicationHandler for App {
 
     fn window_event(&mut self, event_loop: &ActiveEventLoop, _: WindowId, event: WindowEvent) {
         match event {
-            WindowEvent::CloseRequested => event_loop.exit(),
+            WindowEvent::CloseRequested => {
+                self.write_save();
+                event_loop.exit();
+            }
             WindowEvent::Resized(size) => {
                 if let Some(pixels) = &mut self.pixels {
                     let _ = pixels.resize_surface(size.width, size.height);
@@ -185,15 +201,22 @@ fn center(window: &Window) {
 }
 
 fn main() {
-    let emulator = match std::env::args().nth(1) {
+    let (emulator, save) = match std::env::args().nth(1) {
         Some(path) => {
             let rom = std::fs::read(&path).unwrap_or_else(|e| panic!("cannot read {path}: {e}"));
-            Emulator::new(&rom)
+            let mut emulator = Emulator::new(&rom);
+
+            let save = PathBuf::from(&path).with_extension("sav");
+            if let Ok(saved) = std::fs::read(&save) {
+                emulator.load_battery_ram(&saved);
+            }
+
+            (emulator, Some(save))
         }
-        None => Emulator::unplugged(),
+        None => (Emulator::unplugged(), None),
     };
 
     let event_loop = EventLoop::new().unwrap();
-    let mut app = App::new(emulator);
+    let mut app = App::new(emulator, save);
     event_loop.run_app(&mut app).unwrap();
 }
