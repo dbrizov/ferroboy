@@ -10,6 +10,19 @@ const DRAWING_DOTS: u32 = 172;
 const SCANLINE_DOTS: u32 = 456;
 const FRAME_DOTS: u32 = SCANLINE_DOTS * SCANLINES as u32;
 
+const LCDC_ENABLED: u8 = 1 << 7;
+const TILE_BYTES: u16 = 16;
+const TILE_SIZE: u8 = 8;
+const TILES_PER_MAP_ROW: u16 = 32;
+
+const LOW_MAP: u16 = 0x1800;
+const HIGH_MAP: u16 = 0x1C00;
+const SIGNED_TILE_BASE: u16 = 0x1000;
+
+const LCDC_BG_ENABLED: u8 = 1 << 0;
+const LCDC_BG_MAP_HIGH: u8 = 1 << 3;
+const LCDC_TILE_DATA_UNSIGNED: u8 = 1 << 4;
+
 mod addr {
     pub const LCDC: u16 = 0xFF40;
     pub const STAT: u16 = 0xFF41;
@@ -24,8 +37,6 @@ mod addr {
     pub const WY: u16 = 0xFF4A;
     pub const WX: u16 = 0xFF4B;
 }
-
-const LCDC_ENABLED: u8 = 1 << 7;
 
 mod stat {
     pub const LYC_EQUALS_LY: u8 = 1 << 6;
@@ -111,6 +122,7 @@ impl Ppu {
             Mode::Drawing if self.dots >= DRAWING_DOTS => {
                 self.dots -= DRAWING_DOTS;
                 self.mode = Mode::HBlank;
+                self.render_scanline();
                 self.stat_interrupt(stat::HBLANK)
             }
             Mode::HBlank if self.dots >= SCANLINE_DOTS - OAM_SCAN_DOTS - DRAWING_DOTS => {
@@ -232,6 +244,53 @@ impl Ppu {
             _ => {}
         }
     }
+    pub fn render_scanline(&mut self) {
+        let mut colors = [0u8; SCREEN_WIDTH];
+
+        if self.lcdc & LCDC_BG_ENABLED != 0 {
+            let y = self.ly.wrapping_add(self.scy);
+
+            for (x, color) in colors.iter_mut().enumerate() {
+                let x = (x as u8).wrapping_add(self.scx);
+                *color = self.background_color(x, y);
+            }
+        }
+
+        let line = self.ly as usize * SCREEN_WIDTH;
+        for (x, &color) in colors.iter().enumerate() {
+            self.framebuffer[line + x] = shade(self.bgp, color);
+        }
+    }
+
+    fn background_color(&self, x: u8, y: u8) -> u8 {
+        let map = if self.lcdc & LCDC_BG_MAP_HIGH == 0 {
+            LOW_MAP
+        } else {
+            HIGH_MAP
+        };
+
+        let entry = (y / TILE_SIZE) as u16 * TILES_PER_MAP_ROW + (x / TILE_SIZE) as u16;
+        let tile = self.vram[(map + entry) as usize];
+
+        let row = tile_address(self.lcdc, tile) + (y % TILE_SIZE) as u16 * 2;
+        let low_plane = self.vram[row as usize];
+        let high_plane = self.vram[row as usize + 1];
+        let column = 7 - x % TILE_SIZE;
+
+        (high_plane >> column & 1) << 1 | (low_plane >> column & 1)
+    }
+}
+
+fn tile_address(lcdc: u8, tile: u8) -> u16 {
+    if lcdc & LCDC_TILE_DATA_UNSIGNED != 0 {
+        tile as u16 * TILE_BYTES
+    } else {
+        SIGNED_TILE_BASE.wrapping_add_signed(tile as i8 as i16 * TILE_BYTES as i16)
+    }
+}
+
+fn shade(palette: u8, color: u8) -> u8 {
+    palette >> (color * 2) & 0x03
 }
 
 #[cfg(test)]
@@ -355,5 +414,123 @@ mod tests {
         ppu.write_reg(addr::LY, 100);
 
         assert_eq!(ppu.ly, 3);
+    }
+
+    const ON: u8 = 0x91;
+
+    fn write_striped_tile(ppu: &mut Ppu, index: u8) {
+        let base = index as u16 * TILE_BYTES;
+        for row in 0..8 {
+            ppu.write_vram(base + row * 2, 0b0101_0101);
+            ppu.write_vram(base + row * 2 + 1, 0b0011_0011);
+        }
+    }
+
+    fn identity_palette(ppu: &mut Ppu) {
+        ppu.write_reg(addr::BGP, 0b11_10_01_00);
+    }
+
+    fn rendered_line(ppu: &mut Ppu, line: u8) -> Vec<u8> {
+        ppu.ly = line;
+        ppu.render_scanline();
+        let start = line as usize * SCREEN_WIDTH;
+        ppu.framebuffer[start..start + SCREEN_WIDTH].to_vec()
+    }
+
+    #[test]
+    fn a_tile_maps_its_two_bitplanes_onto_four_colors() {
+        let mut ppu = Ppu::new();
+        identity_palette(&mut ppu);
+        ppu.write_reg(addr::LCDC, ON);
+        write_striped_tile(&mut ppu, 0);
+
+        assert_eq!(&rendered_line(&mut ppu, 0)[..8], &[0, 1, 2, 3, 0, 1, 2, 3]);
+    }
+
+    #[test]
+    fn the_palette_is_an_indirection_not_a_shade() {
+        let mut ppu = Ppu::new();
+        ppu.write_reg(addr::LCDC, ON);
+        write_striped_tile(&mut ppu, 0);
+        ppu.write_reg(addr::BGP, 0b00_01_10_11);
+
+        assert_eq!(&rendered_line(&mut ppu, 0)[..8], &[3, 2, 1, 0, 3, 2, 1, 0]);
+    }
+
+    #[test]
+    fn scx_scrolls_the_viewport() {
+        let mut ppu = Ppu::new();
+        identity_palette(&mut ppu);
+        ppu.write_reg(addr::LCDC, ON);
+        write_striped_tile(&mut ppu, 0);
+        ppu.write_reg(addr::SCX, 2);
+
+        assert_eq!(&rendered_line(&mut ppu, 0)[..6], &[2, 3, 0, 1, 2, 3]);
+    }
+
+    #[test]
+    fn scy_selects_which_row_of_the_map_a_scanline_reads() {
+        let mut ppu = Ppu::new();
+        identity_palette(&mut ppu);
+        ppu.write_reg(addr::LCDC, ON);
+        write_striped_tile(&mut ppu, 1);
+        ppu.write_vram(LOW_MAP + TILES_PER_MAP_ROW, 1);
+
+        assert_eq!(rendered_line(&mut ppu, 0)[..4], [0, 0, 0, 0]);
+
+        ppu.write_reg(addr::SCY, 8);
+        assert_eq!(rendered_line(&mut ppu, 0)[..4], [0, 1, 2, 3]);
+    }
+
+    #[test]
+    fn the_signed_addressing_mode_reaches_the_block_below_0x9000() {
+        assert_eq!(tile_address(0x00, 0x00), 0x1000);
+        assert_eq!(tile_address(0x00, 0x7F), 0x1000 + 0x7F * 16);
+        assert_eq!(tile_address(0x00, 0xFF), 0x1000 - 16);
+        assert_eq!(tile_address(0x00, 0x80), 0x0800);
+
+        assert_eq!(tile_address(LCDC_TILE_DATA_UNSIGNED, 0x00), 0x0000);
+        assert_eq!(tile_address(LCDC_TILE_DATA_UNSIGNED, 0xFF), 0xFF * 16);
+    }
+
+    #[test]
+    fn the_high_map_is_a_different_1024_bytes() {
+        let mut ppu = Ppu::new();
+        identity_palette(&mut ppu);
+        write_striped_tile(&mut ppu, 5);
+        ppu.write_vram(HIGH_MAP, 5);
+
+        ppu.write_reg(addr::LCDC, ON);
+        assert_eq!(rendered_line(&mut ppu, 0)[..4], [0, 0, 0, 0]);
+
+        ppu.write_reg(addr::LCDC, ON | LCDC_BG_MAP_HIGH);
+        assert_eq!(rendered_line(&mut ppu, 0)[..4], [0, 1, 2, 3]);
+    }
+
+    #[test]
+    fn clearing_lcdc_bit_0_blanks_the_background() {
+        let mut ppu = Ppu::new();
+        identity_palette(&mut ppu);
+        ppu.write_reg(addr::LCDC, ON);
+        write_striped_tile(&mut ppu, 0);
+        assert_ne!(rendered_line(&mut ppu, 0)[1], 0);
+
+        ppu.write_reg(addr::LCDC, ON & !LCDC_BG_ENABLED);
+        assert_eq!(rendered_line(&mut ppu, 0), vec![0; SCREEN_WIDTH]);
+    }
+
+    #[test]
+    fn a_whole_frame_of_scanlines_lands_in_the_right_rows() {
+        let mut ppu = Ppu::new();
+        identity_palette(&mut ppu);
+        ppu.write_reg(addr::LCDC, ON);
+        write_striped_tile(&mut ppu, 0);
+
+        for line in 0..SCREEN_HEIGHT as u8 {
+            rendered_line(&mut ppu, line);
+        }
+        for line in 0..SCREEN_HEIGHT {
+            assert_eq!(ppu.framebuffer[line * SCREEN_WIDTH + 1], 1, "line {line}");
+        }
     }
 }
