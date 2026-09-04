@@ -4,19 +4,22 @@ A Game Boy emulator written in Rust
 ![gif](https://raw.githubusercontent.com/dbrizov/ferroboy/refs/heads/master/docs/ferroboy.gif)
 
 # Build & Run
+
+## Desktop
 ```
 cargo run -p ferroboy_desktop -- <rom.gb>   # boot a cartridge
 cargo run -p ferroboy_desktop               # no cartridge, boot ROM only
 ```
 
-```
-cargo test -p ferroboy --release            # run the test ROMs at full speed
-cargo fmt && cargo clippy --all-targets
-```
-
+## Web
 ```
 cargo install trunk                         # one-time setup for the web build
 trunk serve --release                       # then open http://localhost:8080
+
+```
+ ## Tests
+```
+cargo test -p ferroboy --release            # run the test ROMs at full speed
 ```
 
 # Controls
