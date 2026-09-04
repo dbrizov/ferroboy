@@ -22,9 +22,20 @@ pub struct Registers {
 }
 
 impl Registers {
-    /// The state the DMG boot ROM leaves behind. M2 may run the real boot ROM
-    /// instead, in which case these become zeros and PC starts at 0x0000.
-    fn post_boot() -> Self {
+    pub fn new() -> Self {
+        Self {
+            a: 0,
+            f: 0,
+            b: 0,
+            c: 0,
+            d: 0,
+            e: 0,
+            h: 0,
+            l: 0,
+        }
+    }
+
+    fn new_post_boot() -> Self {
         Self {
             a: 0x01,
             f: 0xB0,
@@ -94,9 +105,9 @@ pub struct Cpu {
 impl Cpu {
     pub fn new() -> Self {
         Self {
-            regs: Registers::post_boot(),
-            sp: 0xFFFE,
-            pc: 0x0100,
+            regs: Registers::new(),
+            sp: 0,
+            pc: 0,
             ime: false,
             ime_pending: false,
             halted: false,
@@ -184,7 +195,7 @@ mod tests {
 
     #[test]
     fn b_is_the_high_byte_of_bc() {
-        let mut regs = Registers::post_boot();
+        let mut regs = Registers::new_post_boot();
         regs.set_bc(0x1234);
         assert_eq!(regs.b, 0x12);
         assert_eq!(regs.c, 0x34);
@@ -193,7 +204,7 @@ mod tests {
 
     #[test]
     fn the_low_nibble_of_f_does_not_exist() {
-        let mut regs = Registers::post_boot();
+        let mut regs = Registers::new_post_boot();
         regs.set_af(0xFFFF);
         assert_eq!(regs.f, 0xF0);
         assert_eq!(regs.af(), 0xFFF0);
@@ -201,7 +212,7 @@ mod tests {
 
     #[test]
     fn flags_round_trip() {
-        let mut regs = Registers::post_boot();
+        let mut regs = Registers::new_post_boot();
         regs.set_flags(true, false, false, true);
         assert!(regs.has_flags(FLAG_Z));
         assert!(regs.has_flags(FLAG_C));

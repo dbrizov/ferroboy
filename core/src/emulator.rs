@@ -1,3 +1,4 @@
+use crate::boot_rom::BOOT_ROM;
 use crate::bus::Bus;
 use crate::cartridge::{self, Cartridge};
 use crate::cpu::Cpu;
@@ -10,18 +11,22 @@ pub struct Emulator {
 
 impl Emulator {
     pub fn new(rom: &[u8]) -> Self {
-        Self::with_cartridge(cartridge::load(rom))
+        Self::from_cartridge(cartridge::load(rom), &BOOT_ROM)
     }
 
     pub fn unplugged() -> Self {
-        Self::with_cartridge(cartridge::unplugged())
+        Self::from_cartridge(cartridge::unplugged(), &BOOT_ROM)
     }
 
-    fn with_cartridge(cartridge: Box<dyn Cartridge>) -> Self {
+    fn from_cartridge(cartridge: Box<dyn Cartridge>, boot_rom: &[u8]) -> Self {
         Self {
             cpu: Cpu::new(),
-            bus: Bus::new(cartridge),
+            bus: Bus::new(cartridge, boot_rom),
         }
+    }
+
+    pub fn read(&self, address: u16) -> u8 {
+        self.bus.read(address)
     }
 
     pub fn step(&mut self) -> u8 {

@@ -1,5 +1,6 @@
 #![allow(dead_code)] // TODO remove
 
+mod boot_rom;
 mod bus;
 mod cartridge;
 mod cpu;

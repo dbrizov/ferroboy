@@ -31,6 +31,7 @@ const PPU_REG_START: u16 = 0xFF40;
 const PPU_REG_END: u16 = 0xFF4B;
 const HRAM_START: u16 = 0xFF80;
 const HRAM_END: u16 = 0xFFFE;
+const BOOT_ROM_DISABLE: u16 = 0xFF50;
 const IE: u16 = 0xFFFF;
 
 pub struct Bus {
@@ -40,6 +41,8 @@ pub struct Bus {
     pub inte: u8, // IE register
 
     cartridge: Box<dyn Cartridge>,
+    boot_rom: Vec<u8>,
+    boot_rom_mapped: bool,
     pub ppu: Ppu,
     pub timer: Timer,
     pub joypad: Joypad,
@@ -47,13 +50,15 @@ pub struct Bus {
 }
 
 impl Bus {
-    pub fn new(cartridge: Box<dyn Cartridge>) -> Self {
+    pub fn new(cartridge: Box<dyn Cartridge>, boot_rom: &[u8]) -> Self {
         Self {
             wram: [0; 0x2000],
             hram: [0; 0x7F],
             intf: 0,
             inte: 0,
             cartridge,
+            boot_rom: boot_rom.to_vec(),
+            boot_rom_mapped: true,
             ppu: Ppu::new(),
             timer: Timer::new(),
             joypad: Joypad::new(),
@@ -69,6 +74,11 @@ impl Bus {
 
     pub fn read(&self, address: u16) -> u8 {
         match address {
+            ROM_START..=ROM_END
+                if self.boot_rom_mapped && (address as usize) < self.boot_rom.len() =>
+            {
+                self.boot_rom[address as usize]
+            }
             ROM_START..=ROM_END => self.cartridge.read_rom(address),
             VRAM_START..=VRAM_END => self.ppu.read_vram(address - VRAM_START),
             CART_RAM_START..=CART_RAM_END => self.cartridge.read_ram(address - CART_RAM_START),
@@ -107,6 +117,7 @@ impl Bus {
             OAM_DMA => {}
             PPU_REG_START..=PPU_REG_END => self.ppu.write_reg(address, value),
             HRAM_START..=HRAM_END => self.hram[(address - HRAM_START) as usize] = value,
+            BOOT_ROM_DISABLE => self.boot_rom_mapped = false,
             IE => self.inte = value,
             _ => {}
         }
