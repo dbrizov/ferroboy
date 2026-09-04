@@ -91,8 +91,6 @@ fn rom_size(code: u8) -> usize {
     0x8000 << code
 }
 
-/// Not a shift like the ROM size, and not monotonic - 0x05 is 64 KiB, which is
-/// less than 0x04's 128 KiB.
 fn ram_size(code: u8) -> usize {
     match code {
         0x00 => 0,

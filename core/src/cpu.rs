@@ -1,3 +1,4 @@
+mod alu;
 mod opcodes;
 
 use crate::bus::Bus;
@@ -71,16 +72,12 @@ impl Registers {
         self.l = value as u8;
     }
 
-    pub fn has_flags(&self, flags: u8) -> bool {
-        self.f & flags != 0
+    pub fn has_flags(&self, mask: u8) -> bool {
+        (self.f & mask) == mask
     }
 
-    pub fn set_flags(&mut self, flags: u8, on: bool) {
-        if on {
-            self.f |= flags;
-        } else {
-            self.f &= !flags;
-        }
+    pub fn set_flags(&mut self, z: bool, n: bool, h: bool, c: bool) {
+        self.f = (z as u8) << 7 | (n as u8) << 6 | (h as u8) << 5 | (c as u8) << 4;
     }
 }
 
@@ -110,14 +107,46 @@ impl Cpu {
             return 4; // idle, but the clock still runs
         }
 
-        let opcode = self.fetch(bus);
-        self.execute(opcode, bus)
+        // EI takes effect one instruction late, so the pending flag is read
+        // before the instruction runs and applied after it.
+        let enabling = self.ime_pending;
+
+        let opcode = self.fetch8(bus);
+        let cycles = self.execute(opcode, bus);
+
+        if enabling {
+            self.ime = true;
+            self.ime_pending = false;
+        }
+
+        cycles
     }
 
-    fn fetch(&mut self, bus: &mut Bus) -> u8 {
+    fn fetch8(&mut self, bus: &mut Bus) -> u8 {
         let byte = bus.read(self.pc);
         self.pc = self.pc.wrapping_add(1);
         byte
+    }
+
+    fn fetch16(&mut self, bus: &mut Bus) -> u16 {
+        let low = self.fetch8(bus) as u16;
+        let high = self.fetch8(bus) as u16;
+        high << 8 | low
+    }
+
+    fn push16(&mut self, bus: &mut Bus, value: u16) {
+        self.sp = self.sp.wrapping_sub(1);
+        bus.write(self.sp, (value >> 8) as u8);
+        self.sp = self.sp.wrapping_sub(1);
+        bus.write(self.sp, value as u8);
+    }
+
+    fn pop16(&mut self, bus: &mut Bus) -> u16 {
+        let low = bus.read(self.sp) as u16;
+        self.sp = self.sp.wrapping_add(1);
+        let high = bus.read(self.sp) as u16;
+        self.sp = self.sp.wrapping_add(1);
+        high << 8 | low
     }
 
     fn execute(&mut self, opcode: u8, bus: &mut Bus) -> u8 {
@@ -128,7 +157,7 @@ impl Cpu {
                 4
             }
             PREFIX_CB => {
-                let cb_opcode = self.fetch(bus);
+                let cb_opcode = self.fetch8(bus);
                 self.execute_cb(cb_opcode, bus)
             }
             _ => panic!(
@@ -174,13 +203,11 @@ mod tests {
     #[test]
     fn flags_round_trip() {
         let mut regs = Registers::post_boot();
-        regs.f = 0;
-        regs.set_flags(FLAG_Z | FLAG_C, true);
+        regs.set_flags(true, false, false, true);
         assert!(regs.has_flags(FLAG_Z));
         assert!(regs.has_flags(FLAG_C));
+        assert!(regs.has_flags(FLAG_Z | FLAG_C));
         assert!(!regs.has_flags(FLAG_N));
-        regs.set_flags(FLAG_Z, false);
-        assert!(!regs.has_flags(FLAG_Z));
-        assert_eq!(regs.f, FLAG_C);
+        assert_eq!(regs.f, FLAG_Z | FLAG_C);
     }
 }
