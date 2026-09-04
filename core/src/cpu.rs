@@ -1,8 +1,9 @@
 mod alu;
+mod exec;
+mod exec_cb;
 mod opcodes;
 
 use crate::bus::Bus;
-use crate::cpu::opcodes::*;
 
 pub const FLAG_Z: u8 = 1 << 7;
 pub const FLAG_N: u8 = 1 << 6;
@@ -147,35 +148,6 @@ impl Cpu {
         let high = bus.read(self.sp) as u16;
         self.sp = self.sp.wrapping_add(1);
         high << 8 | low
-    }
-
-    fn execute(&mut self, opcode: u8, bus: &mut Bus) -> u8 {
-        match opcode {
-            NOP => 4,
-            HALT => {
-                self.halted = true;
-                4
-            }
-            PREFIX_CB => {
-                let cb_opcode = self.fetch8(bus);
-                self.execute_cb(cb_opcode, bus)
-            }
-            _ => panic!(
-                "unimplemented opcode {:#04X} ({}) at {:#06X}",
-                opcode,
-                MNEMONIC[opcode as usize],
-                self.pc.wrapping_sub(1)
-            ),
-        }
-    }
-
-    fn execute_cb(&mut self, cb_opcode: u8, _bus: &mut Bus) -> u8 {
-        panic!(
-            "unimplemented CB opcode {:#04X} ({}) at {:#06X}",
-            cb_opcode,
-            CB_MNEMONIC[cb_opcode as usize],
-            self.pc.wrapping_sub(2)
-        )
     }
 }
 
