@@ -1,5 +1,3 @@
-// https://www.pastraiser.com/cpu/gameboy/gameboy_opcodes.html
-
 #[rustfmt::skip]
 mod table {
     // Unprefixed opcodes.
