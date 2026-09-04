@@ -1,4 +1,5 @@
 use crate::bus::Bus;
+use crate::cartridge::{self, Cartridge};
 use crate::cpu::Cpu;
 use crate::ppu::{SCREEN_HEIGHT, SCREEN_WIDTH};
 
@@ -9,9 +10,17 @@ pub struct Emulator {
 
 impl Emulator {
     pub fn new(rom: &[u8]) -> Self {
+        Self::with_cartridge(cartridge::load(rom))
+    }
+
+    pub fn unplugged() -> Self {
+        Self::with_cartridge(cartridge::unplugged())
+    }
+
+    fn with_cartridge(cartridge: Box<dyn Cartridge>) -> Self {
         Self {
             cpu: Cpu::new(),
-            bus: Bus::new(rom),
+            bus: Bus::new(cartridge),
         }
     }
 

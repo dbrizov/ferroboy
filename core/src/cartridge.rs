@@ -1,6 +1,8 @@
 mod nombc;
+mod unplugged;
 
 use crate::cartridge::nombc::NoMbc;
+use crate::cartridge::unplugged::Unplugged;
 
 pub trait Cartridge {
     fn read_rom(&self, address: u16) -> u8;
@@ -19,6 +21,10 @@ pub fn load(rom: &[u8]) -> Box<dyn Cartridge> {
         0x01..=0x03 if header.rom_size == 0x8000 => Box::new(NoMbc::new(rom, &header)),
         other => panic!("unsupported cartridge type {other:#04X} - M9 adds MBC1, MBC3 and MBC5"),
     }
+}
+
+pub fn unplugged() -> Box<dyn Cartridge> {
+    Box::new(Unplugged)
 }
 
 mod addr {

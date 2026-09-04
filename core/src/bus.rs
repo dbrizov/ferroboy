@@ -1,4 +1,4 @@
-use crate::cartridge::{self, Cartridge};
+use crate::cartridge::Cartridge;
 use crate::joypad::Joypad;
 use crate::ppu::Ppu;
 use crate::serial::Serial;
@@ -47,13 +47,13 @@ pub struct Bus {
 }
 
 impl Bus {
-    pub fn new(rom: &[u8]) -> Self {
+    pub fn new(cartridge: Box<dyn Cartridge>) -> Self {
         Self {
             wram: [0; 0x2000],
             hram: [0; 0x7F],
             intf: 0,
             inte: 0,
-            cartridge: cartridge::load(rom),
+            cartridge,
             ppu: Ppu::new(),
             timer: Timer::new(),
             joypad: Joypad::new(),
