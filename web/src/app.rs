@@ -35,6 +35,26 @@ fn button_for(code: &str) -> Option<Button> {
     }
 }
 
+const PAD_SOUTH: usize = 0;
+const PAD_EAST: usize = 1;
+const PAD_SELECT: usize = 8;
+const PAD_START: usize = 9;
+const PAD_UP: usize = 12;
+const PAD_DOWN: usize = 13;
+const PAD_LEFT: usize = 14;
+const PAD_RIGHT: usize = 15;
+
+const PAD: [(usize, Button); 8] = [
+    (PAD_RIGHT, Button::Right),
+    (PAD_LEFT, Button::Left),
+    (PAD_UP, Button::Up),
+    (PAD_DOWN, Button::Down),
+    (PAD_SOUTH, Button::B),
+    (PAD_EAST, Button::A),
+    (PAD_SELECT, Button::Select),
+    (PAD_START, Button::Start),
+];
+
 thread_local! {
     static PICKED_ROM: RefCell<Option<Vec<u8>>> = const { RefCell::new(None) };
     static PRESSED_BUTTONS: RefCell<Vec<(Button, bool)>> = const { RefCell::new(Vec::new()) };
@@ -44,6 +64,7 @@ struct App {
     emulator: Emulator,
     save_key: Option<String>,
     audio: Rc<RefCell<Option<Audio>>>,
+    pad_buttons: [bool; PAD.len()],
     window: Option<Arc<Window>>,
     pixels: Rc<RefCell<Option<Pixels<'static>>>>,
     next_frame: Instant,
@@ -58,6 +79,7 @@ impl App {
             emulator: Emulator::unplugged(),
             save_key: None,
             audio,
+            pad_buttons: [false; PAD.len()],
             window: None,
             pixels: Rc::new(RefCell::new(None)),
             next_frame: Instant::now(),
@@ -106,6 +128,45 @@ impl App {
         let samples = self.emulator.take_samples();
         if let Some(audio) = self.audio.borrow().as_ref() {
             audio.queue(&samples);
+        }
+    }
+
+    fn poll_pad(&mut self) {
+        let Some(navigator) = web_sys::window().map(|window| window.navigator()) else {
+            return;
+        };
+        let Ok(pads) = navigator.get_gamepads() else {
+            return;
+        };
+
+        for entry in pads.iter() {
+            // Empty slots read back as null and fail the cast.
+            let Ok(pad) = entry.dyn_into::<web_sys::Gamepad>() else {
+                continue;
+            };
+            // Only the standard mapping has fixed button indices.
+            if pad.mapping() != web_sys::GamepadMappingType::Standard {
+                continue;
+            }
+
+            let buttons = pad.buttons();
+            let App {
+                pad_buttons,
+                emulator,
+                ..
+            } = self;
+            for (state, &(index, button)) in pad_buttons.iter_mut().zip(&PAD) {
+                let pressed = buttons
+                    .get(index as u32)
+                    .dyn_into::<web_sys::GamepadButton>()
+                    .map(|button| button.pressed())
+                    .unwrap_or(false);
+                if pressed != *state {
+                    *state = pressed;
+                    emulator.set_button(button, pressed);
+                }
+            }
+            return;
         }
     }
 
@@ -186,6 +247,7 @@ impl ApplicationHandler for App {
                 self.emulator.set_button(button, pressed);
             }
         });
+        self.poll_pad();
 
         let now = Instant::now();
         if now >= self.next_frame {

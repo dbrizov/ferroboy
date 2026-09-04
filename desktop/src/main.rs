@@ -24,7 +24,7 @@ const KEYBOARD: [(KeyCode, Button); 8] = [
     (KeyCode::Enter, Button::Start),
 ];
 
-const CONTROLLER: [(gilrs::Button, Button); 8] = [
+const PAD: [(gilrs::Button, Button); 8] = [
     (gilrs::Button::DPadRight, Button::Right),
     (gilrs::Button::DPadLeft, Button::Left),
     (gilrs::Button::DPadUp, Button::Up),
@@ -38,7 +38,7 @@ const CONTROLLER: [(gilrs::Button, Button); 8] = [
 struct App {
     save: Option<PathBuf>,
     audio: Option<Audio>,
-    controllers: Option<Gilrs>,
+    pad: Option<Gilrs>,
     window: Option<Arc<Window>>,
     pixels: Option<Pixels<'static>>,
     emulator: Emulator,
@@ -55,7 +55,7 @@ impl App {
         Self {
             save,
             audio,
-            controllers: Gilrs::new().ok(),
+            pad: Gilrs::new().ok(),
             window: None,
             pixels: None,
             emulator,
@@ -73,19 +73,19 @@ impl App {
         }
     }
 
-    fn poll_controllers(&mut self) {
-        let Some(controllers) = &mut self.controllers else {
+    fn poll_pad(&mut self) {
+        let Some(pad) = &mut self.pad else {
             return;
         };
 
-        while let Some(event) = controllers.next_event() {
+        while let Some(event) = pad.next_event() {
             let (pad_button, pressed) = match event.event {
                 EventType::ButtonPressed(button, _) => (button, true),
                 EventType::ButtonReleased(button, _) => (button, false),
                 _ => continue,
             };
 
-            for (from, to) in CONTROLLER {
+            for (from, to) in PAD {
                 if from == pad_button {
                     self.emulator.set_button(to, pressed);
                 }
@@ -163,7 +163,7 @@ impl ApplicationHandler for App {
     }
 
     fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
-        self.poll_controllers();
+        self.poll_pad();
 
         let now = Instant::now();
         if now >= self.next_frame {
