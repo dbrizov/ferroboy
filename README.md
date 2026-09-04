@@ -39,3 +39,4 @@ cargo fmt && cargo clippy --all-targets
 
 ## Other emulators
 - [SameBoy](https://github.com/LIJI32/SameBoy)
+- [binjgb](https://github.com/binji/binjgb)
