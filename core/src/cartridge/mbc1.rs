@@ -8,11 +8,11 @@ const RAM_ENABLED: u8 = 0x0A;
 pub struct Mbc1 {
     rom: Vec<u8>,
     ram: Vec<u8>,
-    battery: bool,
+    has_battery: bool,
     ram_enabled: bool,
     bank: u8,
     upper: u8,
-    ram_mode: bool,
+    in_ram_mode: bool,
 }
 
 impl Mbc1 {
@@ -20,17 +20,17 @@ impl Mbc1 {
         Self {
             rom: rom.to_vec(),
             ram: vec![0; header.ram_size],
-            battery: header.has_battery,
+            has_battery: header.has_battery,
             ram_enabled: false,
             bank: 1,
             upper: 0,
-            ram_mode: false,
+            in_ram_mode: false,
         }
     }
 
     fn rom_bank(&self, address: u16) -> usize {
         if address < ROM_BANK_BYTES as u16 {
-            if self.ram_mode {
+            if self.in_ram_mode {
                 (self.upper as usize) << 5
             } else {
                 0
@@ -46,7 +46,7 @@ impl Mbc1 {
     }
 
     fn ram_bank(&self) -> usize {
-        if self.ram_mode {
+        if self.in_ram_mode {
             self.upper as usize
         } else {
             0
@@ -65,7 +65,7 @@ impl Cartridge for Mbc1 {
             0x0000..=0x1FFF => self.ram_enabled = value & 0x0F == RAM_ENABLED,
             0x2000..=0x3FFF => self.bank = value & 0x1F,
             0x4000..=0x5FFF => self.upper = value & 0x03,
-            _ => self.ram_mode = value & 0x01 != 0,
+            _ => self.in_ram_mode = value & 0x01 != 0,
         }
     }
 
@@ -88,7 +88,7 @@ impl Cartridge for Mbc1 {
     }
 
     fn battery_ram(&self) -> Option<&[u8]> {
-        self.battery.then_some(self.ram.as_slice())
+        self.has_battery.then_some(self.ram.as_slice())
     }
 
     fn load_battery_ram(&mut self, saved: &[u8]) {

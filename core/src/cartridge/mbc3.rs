@@ -8,7 +8,7 @@ const RAM_ENABLED: u8 = 0x0A;
 pub struct Mbc3 {
     rom: Vec<u8>,
     ram: Vec<u8>,
-    battery: bool,
+    has_battery: bool,
     ram_enabled: bool,
     rom_bank: u8,
     ram_bank: u8,
@@ -19,7 +19,7 @@ impl Mbc3 {
         Self {
             rom: rom.to_vec(),
             ram: vec![0; header.ram_size],
-            battery: header.has_battery,
+            has_battery: header.has_battery,
             ram_enabled: false,
             rom_bank: 1,
             ram_bank: 0,
@@ -77,7 +77,7 @@ impl Cartridge for Mbc3 {
     }
 
     fn battery_ram(&self) -> Option<&[u8]> {
-        self.battery.then_some(self.ram.as_slice())
+        self.has_battery.then_some(self.ram.as_slice())
     }
 
     fn load_battery_ram(&mut self, saved: &[u8]) {
