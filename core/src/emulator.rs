@@ -30,6 +30,10 @@ impl Emulator {
         self.bus.set_button(button, pressed);
     }
 
+    pub fn take_samples(&mut self) -> Vec<(f32, f32)> {
+        self.bus.take_samples()
+    }
+
     pub fn battery_ram(&self) -> Option<&[u8]> {
         self.bus.battery_ram()
     }

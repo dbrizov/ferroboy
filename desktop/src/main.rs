@@ -1,7 +1,10 @@
+mod audio;
+
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+use crate::audio::Audio;
 use ferroboy::{Button, Emulator, SCREEN_HEIGHT, SCREEN_WIDTH};
 use gilrs::{EventType, Gilrs};
 use pixels::{Pixels, SurfaceTexture};
@@ -49,6 +52,7 @@ const CONTROLLER: [(gilrs::Button, Button); 8] = [
 
 struct App {
     save: Option<PathBuf>,
+    audio: Option<Audio>,
     controllers: Option<Gilrs>,
     window: Option<Arc<Window>>,
     pixels: Option<Pixels<'static>>,
@@ -58,8 +62,14 @@ struct App {
 
 impl App {
     fn new(emulator: Emulator, save: Option<PathBuf>) -> Self {
+        let audio = Audio::new();
+        if audio.is_none() {
+            eprintln!("no audio output device; running silent");
+        }
+
         Self {
             save,
+            audio,
             controllers: Gilrs::new().ok(),
             window: None,
             pixels: None,
@@ -95,6 +105,13 @@ impl App {
                     self.emulator.set_button(to, pressed);
                 }
             }
+        }
+    }
+
+    fn play(&mut self) {
+        let samples = self.emulator.take_samples();
+        if let Some(audio) = &self.audio {
+            audio.queue(&samples);
         }
     }
 
@@ -174,6 +191,7 @@ impl ApplicationHandler for App {
             }
 
             self.emulator.run_frame();
+            self.play();
             self.draw();
 
             if let Some(window) = &self.window {

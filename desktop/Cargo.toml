@@ -8,6 +8,7 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
+cpal = "0.18.2"
 ferroboy = { path = "../core" }
 gilrs = "0.11.2"
 pixels = "0.17.2"

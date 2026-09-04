@@ -1,3 +1,4 @@
+mod apu;
 mod boot_rom;
 mod bus;
 mod cartridge;
@@ -9,6 +10,7 @@ mod ppu;
 mod serial;
 mod timer;
 
+pub use crate::apu::SAMPLE_RATE;
 pub use crate::emulator::Emulator;
 pub use crate::joypad::Button;
 pub use crate::ppu::{SCREEN_HEIGHT, SCREEN_WIDTH};

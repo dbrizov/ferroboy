@@ -1,3 +1,4 @@
+use crate::apu::Apu;
 use crate::cartridge::Cartridge;
 use crate::joypad::{Button, Joypad};
 use crate::ppu::Ppu;
@@ -43,6 +44,7 @@ pub struct Bus {
     cartridge: Box<dyn Cartridge>,
     boot_rom: Vec<u8>,
     boot_rom_mapped: bool,
+    pub apu: Apu,
     pub ppu: Ppu,
     pub timer: Timer,
     pub joypad: Joypad,
@@ -59,6 +61,7 @@ impl Bus {
             cartridge,
             boot_rom: boot_rom.to_vec(),
             boot_rom_mapped: true,
+            apu: Apu::new(),
             ppu: Ppu::new(),
             timer: Timer::new(),
             joypad: Joypad::new(),
@@ -67,6 +70,7 @@ impl Bus {
     }
 
     pub fn tick(&mut self, t_cycles: u8) {
+        self.intf |= self.apu.tick(t_cycles);
         self.intf |= self.ppu.tick(t_cycles);
         self.intf |= self.timer.tick(t_cycles);
         self.intf |= self.serial.tick(t_cycles);
@@ -82,6 +86,10 @@ impl Bus {
 
     pub fn set_button(&mut self, button: Button, pressed: bool) {
         self.intf |= self.joypad.set(button, pressed);
+    }
+
+    pub fn take_samples(&mut self) -> Vec<(f32, f32)> {
+        self.apu.take_samples()
     }
 
     pub fn battery_ram(&self) -> Option<&[u8]> {
@@ -110,7 +118,7 @@ impl Bus {
             SERIAL_START..=SERIAL_END => self.serial.read(address),
             TIMER_START..=TIMER_END => self.timer.read(address),
             IF => self.intf | 0xE0,
-            APU_START..=APU_END => 0xFF,
+            APU_START..=APU_END => self.apu.read(address),
             PPU_REG_START..=PPU_REG_END => self.ppu.read_reg(address),
             HRAM_START..=HRAM_END => self.hram[(address - HRAM_START) as usize],
             IE => self.inte,
@@ -133,7 +141,7 @@ impl Bus {
             SERIAL_START..=SERIAL_END => self.serial.write(address, value),
             TIMER_START..=TIMER_END => self.timer.write(address, value),
             IF => self.intf = value & 0x1F,
-            APU_START..=APU_END => {}
+            APU_START..=APU_END => self.apu.write(address, value),
             OAM_DMA => self.oam_dma(value),
             PPU_REG_START..=PPU_REG_END => self.ppu.write_reg(address, value),
             HRAM_START..=HRAM_END => self.hram[(address - HRAM_START) as usize] = value,
