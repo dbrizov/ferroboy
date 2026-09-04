@@ -41,7 +41,6 @@ fn cpu_instrs_01_special() {
 }
 
 #[test]
-#[ignore = "needs service_interrupt and a working timer"]
 fn cpu_instrs_02_interrupts() {
     assert_passes("02_interrupts.gb");
 }

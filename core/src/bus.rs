@@ -36,8 +36,8 @@ const IE: u16 = 0xFFFF;
 pub struct Bus {
     wram: [u8; 0x2000],
     hram: [u8; 0x7F],
-    intf: u8, // IF register
-    inte: u8, // IE register
+    pub intf: u8, // IF register
+    pub inte: u8, // IE register
 
     cartridge: Box<dyn Cartridge>,
     pub ppu: Ppu,

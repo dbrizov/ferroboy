@@ -104,6 +104,10 @@ impl Cpu {
     }
 
     pub fn step(&mut self, bus: &mut Bus) -> u8 {
+        if let Some(cycles) = self.handle_interrupt(bus) {
+            return cycles;
+        }
+
         if self.halted {
             return 4; // idle, but the clock still runs
         }
@@ -121,6 +125,29 @@ impl Cpu {
         }
 
         cycles
+    }
+
+    fn handle_interrupt(&mut self, bus: &mut Bus) -> Option<u8> {
+        let pending = bus.intf & bus.inte & 0x1F;
+        if pending == 0 {
+            return None;
+        }
+
+        // HALT wakes on a pending interrupt whether or not IME is set. Clearing
+        // this before the IME check is what stops a DI'd HALT hanging forever.
+        self.halted = false;
+
+        if !self.ime {
+            return None;
+        }
+
+        let bit = pending.trailing_zeros();
+        bus.intf &= !(1 << bit);
+        self.ime = false;
+        self.push16(bus, self.pc);
+        self.pc = 0x40 + bit as u16 * 8;
+
+        Some(20)
     }
 
     fn fetch8(&mut self, bus: &mut Bus) -> u8 {
