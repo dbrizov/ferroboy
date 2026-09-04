@@ -14,6 +14,11 @@ cargo test -p ferroboy --release            # run the test ROMs at full speed
 cargo fmt && cargo clippy --all-targets
 ```
 
+```
+cargo install trunk                         # one-time setup for the web build
+trunk serve --release                       # then open http://localhost:8080
+```
+
 # Controls
 | Game Boy | Keyboard | XBOX Controller |
 | --- | --- | --- |

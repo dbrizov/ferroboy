@@ -1,0 +1,27 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>FerroBoy</title>
+  <style>
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1rem;
+      background: #1a1d21;
+      color: #ddd;
+      font-family: monospace;
+    }
+    canvas { image-rendering: pixelated; outline: none; }
+  </style>
+</head>
+<body>
+  <div id="screen"></div>
+  <input type="file" id="rom" accept=".gb,.gbc">
+  <link data-trunk rel="rust" data-bin="ferroboy_web" />
+</body>
+</html>
