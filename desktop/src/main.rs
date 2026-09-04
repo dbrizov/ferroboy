@@ -1,12 +1,14 @@
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use ferroboy::{Emulator, SCREEN_HEIGHT, SCREEN_WIDTH};
+use ferroboy::{Button, Emulator, SCREEN_HEIGHT, SCREEN_WIDTH};
+use gilrs::{EventType, Gilrs};
 use pixels::{Pixels, SurfaceTexture};
 use winit::application::ApplicationHandler;
 use winit::dpi::{LogicalSize, PhysicalPosition};
-use winit::event::WindowEvent;
+use winit::event::{ElementState, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
+use winit::keyboard::{KeyCode, PhysicalKey};
 use winit::window::{Window, WindowId};
 
 const GB_WIDTH: u32 = SCREEN_WIDTH as u32;
@@ -22,7 +24,30 @@ const PALETTE: [[u8; 4]; 4] = [
     [0x0F, 0x38, 0x0F, 0xFF],
 ];
 
+const KEYBOARD: [(KeyCode, Button); 8] = [
+    (KeyCode::ArrowRight, Button::Right),
+    (KeyCode::ArrowLeft, Button::Left),
+    (KeyCode::ArrowUp, Button::Up),
+    (KeyCode::ArrowDown, Button::Down),
+    (KeyCode::KeyX, Button::A),
+    (KeyCode::KeyZ, Button::B),
+    (KeyCode::Backspace, Button::Select),
+    (KeyCode::Enter, Button::Start),
+];
+
+const CONTROLLER: [(gilrs::Button, Button); 8] = [
+    (gilrs::Button::DPadRight, Button::Right),
+    (gilrs::Button::DPadLeft, Button::Left),
+    (gilrs::Button::DPadUp, Button::Up),
+    (gilrs::Button::DPadDown, Button::Down),
+    (gilrs::Button::South, Button::A),
+    (gilrs::Button::East, Button::B),
+    (gilrs::Button::Select, Button::Select),
+    (gilrs::Button::Start, Button::Start),
+];
+
 struct App {
+    controllers: Option<Gilrs>,
     window: Option<Arc<Window>>,
     pixels: Option<Pixels<'static>>,
     emulator: Emulator,
@@ -32,10 +57,31 @@ struct App {
 impl App {
     fn new(emulator: Emulator) -> Self {
         Self {
+            controllers: Gilrs::new().ok(),
             window: None,
             pixels: None,
             emulator,
             next_frame: Instant::now(),
+        }
+    }
+
+    fn poll_controllers(&mut self) {
+        let Some(controllers) = &mut self.controllers else {
+            return;
+        };
+
+        while let Some(event) = controllers.next_event() {
+            let (pad_button, pressed) = match event.event {
+                EventType::ButtonPressed(button, _) => (button, true),
+                EventType::ButtonReleased(button, _) => (button, false),
+                _ => continue,
+            };
+
+            for (from, to) in CONTROLLER {
+                if from == pad_button {
+                    self.emulator.set_button(to, pressed);
+                }
+            }
         }
     }
 
@@ -83,11 +129,25 @@ impl ApplicationHandler for App {
                     let _ = pixels.render();
                 }
             }
+            WindowEvent::KeyboardInput { event, .. } => {
+                let PhysicalKey::Code(code) = event.physical_key else {
+                    return;
+                };
+                let pressed = event.state == ElementState::Pressed;
+
+                for (key, button) in KEYBOARD {
+                    if key == code {
+                        self.emulator.set_button(button, pressed);
+                    }
+                }
+            }
             _ => return,
         }
     }
 
     fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
+        self.poll_controllers();
+
         let now = Instant::now();
         if now >= self.next_frame {
             self.next_frame += FRAME_DURATION;

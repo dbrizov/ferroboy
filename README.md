@@ -4,7 +4,6 @@ A Game Boy emulator written in Rust
 ![gif](https://raw.githubusercontent.com/dbrizov/ferroboy/refs/heads/master/docs/ferroboy.gif)
 
 # Build & Run
-
 ```
 cargo run -p ferroboy_desktop -- <rom.gb>   # boot a cartridge
 cargo run -p ferroboy_desktop               # no cartridge, boot ROM only
@@ -14,6 +13,15 @@ cargo run -p ferroboy_desktop               # no cartridge, boot ROM only
 cargo test -p ferroboy --release            # run the test ROMs at full speed
 cargo fmt && cargo clippy --all-targets
 ```
+
+# Controls
+| Game Boy | Keyboard | Controller |
+| --- | --- | --- |
+| D-pad | Arrow keys | D-pad |
+| A | `X` | A |
+| B | `Z` | B |
+| Select | `Backspace` | Back |
+| Start | `Enter` | Start |
 
 # References
 

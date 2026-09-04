@@ -2,6 +2,7 @@ use crate::boot_rom::BOOT_ROM;
 use crate::bus::Bus;
 use crate::cartridge::{self, Cartridge};
 use crate::cpu::Cpu;
+use crate::joypad::Button;
 use crate::ppu::{SCREEN_HEIGHT, SCREEN_WIDTH};
 
 pub struct Emulator {
@@ -23,6 +24,10 @@ impl Emulator {
             cpu: Cpu::new(),
             bus: Bus::new(cartridge, boot_rom),
         }
+    }
+
+    pub fn set_button(&mut self, button: Button, pressed: bool) {
+        self.bus.set_button(button, pressed);
     }
 
     pub fn read(&self, address: u16) -> u8 {

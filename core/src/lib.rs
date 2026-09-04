@@ -10,4 +10,5 @@ mod serial;
 mod timer;
 
 pub use crate::emulator::Emulator;
+pub use crate::joypad::Button;
 pub use crate::ppu::{SCREEN_HEIGHT, SCREEN_WIDTH};

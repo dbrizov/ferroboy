@@ -1,5 +1,5 @@
 use crate::cartridge::Cartridge;
-use crate::joypad::Joypad;
+use crate::joypad::{Button, Joypad};
 use crate::ppu::Ppu;
 use crate::serial::Serial;
 use crate::timer::Timer;
@@ -78,6 +78,10 @@ impl Bus {
             let byte = self.read(source + offset);
             self.ppu.write_oam(offset, byte);
         }
+    }
+
+    pub fn set_button(&mut self, button: Button, pressed: bool) {
+        self.intf |= self.joypad.set(button, pressed);
     }
 
     pub fn read(&self, address: u16) -> u8 {
