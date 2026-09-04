@@ -18,10 +18,10 @@ cargo fmt && cargo clippy --all-targets
 | Game Boy | Keyboard | Controller |
 | --- | --- | --- |
 | D-pad | Arrow keys | D-pad |
-| A | `X` | A |
-| B | `Z` | B |
-| Select | `Backspace` | Back |
-| Start | `Enter` | Start |
+| A | X | A |
+| B | Z | B |
+| Select | Backspace | Back |
+| Start | Enter | Start |
 
 # References
 
