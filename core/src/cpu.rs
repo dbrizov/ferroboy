@@ -38,19 +38,6 @@ impl Registers {
         }
     }
 
-    fn new_post_boot() -> Self {
-        Self {
-            a: 0x01,
-            f: 0xB0,
-            b: 0x00,
-            c: 0x13,
-            d: 0x00,
-            e: 0xD8,
-            h: 0x01,
-            l: 0x4D,
-        }
-    }
-
     pub fn af(&self) -> u16 {
         (self.a as u16) << 8 | self.f as u16
     }

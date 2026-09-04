@@ -26,7 +26,7 @@ fn rom_with(cart_type: u8, rom_size: u8, ram_size: u8) -> Vec<u8> {
 #[test]
 fn parses_a_32_kib_cartridge_with_no_ram() {
     let header = Header::parse(&rom_with(CART_TYPE_NONE, ROM_SIZE_32_KIB, RAM_SIZE_NONE));
-    assert_eq!(header.title, "");
+    assert_eq!(header._title, "");
     assert_eq!(header.cart_type, CART_TYPE_NONE);
     assert_eq!(header.rom_size, 0x8000);
     assert_eq!(header.ram_size, 0);
@@ -45,7 +45,7 @@ fn the_title_stops_at_the_first_zero() {
     rom[addr::TITLE..addr::TITLE + 6].copy_from_slice(b"TETRIS");
     rom[addr::CHECKSUM] = header_checksum(&rom);
 
-    assert_eq!(Header::parse(&rom).title, "TETRIS");
+    assert_eq!(Header::parse(&rom)._title, "TETRIS");
 }
 
 #[test]
@@ -55,7 +55,7 @@ fn a_cgb_flag_is_not_part_of_the_title() {
     rom[addr::CGB_FLAG] = CGB_ENHANCED;
     rom[addr::CHECKSUM] = header_checksum(&rom);
 
-    assert_eq!(Header::parse(&rom).title, "A".repeat(15));
+    assert_eq!(Header::parse(&rom)._title, "A".repeat(15));
 }
 
 #[test]

@@ -40,7 +40,7 @@ mod addr {
 }
 
 pub struct Header {
-    pub title: String,
+    pub _title: String,
     pub cart_type: u8,
     pub rom_size: usize,
     pub ram_size: usize,
@@ -60,7 +60,7 @@ impl Header {
         );
 
         Self {
-            title: title(rom),
+            _title: title(rom),
             cart_type: rom[addr::CART_TYPE],
             rom_size: rom_size(rom[addr::ROM_SIZE]),
             ram_size: ram_size(rom[addr::RAM_SIZE]),
