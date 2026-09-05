@@ -3,9 +3,50 @@
 `ferroboy` uses the following third-party material. Reference documentation that informed
 the implementation but is not distributed here is listed in `README.md`.
 
-The DMG boot ROM is Nintendo's and is **not** included. `core/src/boot_rom.rs` is ferroboy's
-own, written for this project: it draws the FerroBoy wordmark rather than the Nintendo logo,
+The boot ROM is custom, written for this project: it draws the FerroBoy wordmark rather than the Nintendo logo,
 performs no logo check, and contains no Nintendo data.
+
+---
+
+## Tobu Tobu Girl Deluxe
+
+Copyright (c) 2017 Tangram Games
+
+Licensed under the MIT License. <https://github.com/SimonLarsen/tobutobugirl-dx>
+
+The default ROM the web build boots when no cartridge has been chosen.
+
+```
+MIT License
+
+Copyright (c) 2017 Tangram Games
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+---
+
+## Blargg's Game Boy test ROMs
+
+Copyright (c) Shay Green ("blargg")
+
+**No licence is declared.** <https://github.com/retrio/gb-test-roms>
 
 ---
 
@@ -14,8 +55,6 @@ performs no logo check, and contains no Nintendo data.
 Copyright (c) 2020 Matt Currie
 
 Licensed under the MIT License. <https://github.com/mattcurrie/dmg-acid2>
-
-Distributed as `core/tests/roms/dmg-acid2.gb`.
 
 ```
 MIT License
@@ -47,45 +86,8 @@ Copyright (c) 2020 Matt Currie
 
 Licensed under the MIT License. <https://github.com/mattcurrie/cgb-acid2>
 
-Distributed as `core/tests/roms/cgb_acid2.gbc`.
-
 ```
 MIT License
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-```
-
----
-
-## Tobu Tobu Girl Deluxe
-
-Copyright (c) 2017 Tangram Games
-
-Licensed under the MIT License. <https://github.com/SimonLarsen/tobutobugirl-dx>
-
-Bundled as `web/assets/tobu.gb`, the default ROM the web build boots when no
-cartridge has been chosen.
-
-```
-MIT License
-
-Copyright (c) 2017 Tangram Games
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -114,9 +116,6 @@ Copyright (c) 2018 izik1
 
 Licensed under the MIT License. <https://github.com/izik1/gbops>
 
-Not distributed. `core/src/cpu/opcodes.rs` is generated from this table, and every cycle
-count in `core/src/cpu/exec.rs` and `core/src/cpu/exec_cb.rs` is checked against it.
-
 ```
 MIT License
 
@@ -141,27 +140,11 @@ SOFTWARE.
 
 ---
 
-## Blargg's Game Boy test ROMs
-
-Copyright (c) Shay Green ("blargg")
-
-**No licence is declared.** <https://github.com/retrio/gb-test-roms>
-
-Distributed as `core/tests/roms/01_special.gb` through `11_op_a_hl.gb` (the `cpu_instrs`
-suite). These are the standard CPU conformance tests and are redistributed in effectively
-every Game Boy emulator project, but no explicit grant accompanies them. They are included
-on that basis; if that is not acceptable for your use, delete them and fetch them at test
-time instead.
-
----
-
 ## winit
 
 Copyright (c) 2014 Francesca Frangipane and the winit contributors
 
 Licensed under the Apache License, Version 2.0. <https://github.com/rust-windowing/winit>
-
-A dependency of `ferroboy_desktop` only. `ferroboy` itself has no dependencies.
 
 ```
                                  Apache License
@@ -344,15 +327,11 @@ A dependency of `ferroboy_desktop` only. `ferroboy` itself has no dependencies.
 
 ---
 
-## gilrs
+## pixels
 
-Copyright (c) 2016 Mateusz Sieczko and other GilRs developers
+Copyright (c) 2019 Jay Oster
 
-Dual-licensed under Apache-2.0 OR MIT; used here under the MIT License.
-<https://gitlab.com/gilrs-project/gilrs>
-
-A dependency of `ferroboy_desktop` only. Provides controller input; on Windows it reads
-Xbox controllers through XInput.
+Licensed under the MIT License. <https://github.com/parasyte/pixels>
 
 ```
 MIT License
@@ -378,13 +357,12 @@ SOFTWARE.
 
 ---
 
-## pixels
+## gilrs
 
-Copyright (c) 2019 Jay Oster
+Copyright (c) 2016 Mateusz Sieczko and other GilRs developers
 
-Licensed under the MIT License. <https://github.com/parasyte/pixels>
-
-A dependency of `ferroboy_desktop` only.
+Dual-licensed under Apache-2.0 OR MIT; used here under the MIT License.
+<https://gitlab.com/gilrs-project/gilrs>
 
 ```
 MIT License
@@ -407,9 +385,3 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
-
-### Transitive dependencies
-
-`winit` and `pixels` pull in a large tree, `wgpu` chief among it, all under permissive
-licences. Run `cargo tree -p ferroboy_desktop` or `cargo about` for the full set; nothing
-in it is copyleft.
