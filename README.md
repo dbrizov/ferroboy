@@ -1,9 +1,12 @@
 # ferroboy
-A Game Boy emulator written in Rust
+A Game Boy emulator written in Rust.<br>
+Supports DMG and CGB ROMs.
 
 ![gif](https://raw.githubusercontent.com/dbrizov/ferroboy/refs/heads/master/docs/ferroboy.gif)
 
 # Build & Run
+You can play it in a web browser [here](https://denisrizov.com/games/ferroboy/index.html).<br>
+The web demo boots `Tobu Tobu Girl` - an open source game by Tangram Games. Check `NOTICES.md`.
 
 ## Desktop
 ```
